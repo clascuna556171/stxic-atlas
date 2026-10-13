@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, ChevronDown, CircleHelp, Command, Download, FileCode2, GitBranch, LoaderCircle, Map, Search, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, CircleHelp, Command, Download, FileCode2, GitBranch, LoaderCircle, Map, Search, ShieldCheck, SunMoon, TriangleAlert, X } from 'lucide-react';
 import type { AtlasData, AtlasNode } from './types';
 import ReviewPanel from './ReviewPanel';
 import { atlasData, readResponse } from './api';
+import { applyAppearance, readAppearance, type Appearance } from './theme';
 
   type SignalView = 'all' | 'dependencies' | 'history';
 
 function App() {
+  const [appearance, setAppearance] = useState<Appearance>(readAppearance);
+  useEffect(() => {
+    applyAppearance(appearance);
+    try { localStorage.setItem('stxic-atlas-appearance', appearance); } catch { /* Optional local preference. */ }
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => applyAppearance(appearance);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, [appearance]);
   const [data, setData] = useState<AtlasData | null>(null);
   const [selectedId, setSelectedId] = useState('ledger');
   const [signalView, setSignalView] = useState<SignalView>('all');
@@ -127,19 +137,21 @@ function App() {
   const reviewRepoName = repoPath.trim().replace(/[\\/]+$/, '').split(/[\\/]/).at(-1);
 
   return <div className="app-shell">
+    <a className="skip-link" href="#top">Skip to workspace</a>
     <header className="topbar">
       <a className="brand" href="#top" aria-label="Stxic Atlas home">
         <span className="brand-glyph" aria-hidden="true"><span /><span /><span /><span /></span>
         <span className="brand-name">stxic<span>atlas</span></span>
       </a>
       <div className="top-divider" />
-      <div className="repo-switcher"><GitBranch size={15} /><span>{activeWorkspace === 'impact' ? data.repository : reviewRepoName || 'Choose local repository'}</span><ChevronDown size={14} /></div>
+      <div className="repo-switcher"><GitBranch size={15} /><span>{activeWorkspace === 'impact' ? data.repository : reviewRepoName || 'Choose local repository'}</span></div>
       <div className="top-spacer" />
       <span className="local-pill"><span className="local-dot" />LOCAL WORKSPACE</span>
+      <label className="appearance-control"><SunMoon size={16} aria-hidden="true" /><span className="sr-only">Appearance</span><select value={appearance} onChange={(event) => setAppearance(event.target.value as Appearance)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
       <button className="icon-button help-button" aria-label="About Stxic Atlas" onClick={() => setShowHelp(true)}><CircleHelp size={18} /></button>
     </header>
 
-    <main id="top" className="main-wrap">
+    <main id="top" className="main-wrap" tabIndex={-1}>
       <section className="page-intro">
         <div className="intro-title-group">
           <div className="title-line"><h1>{activeWorkspace === 'impact' ? 'Change impact' : 'Review swarm'}</h1><span className="version-mark">FIELD NOTE&nbsp; {activeWorkspace === 'impact' ? '01' : '02'}</span></div>
@@ -175,8 +187,8 @@ function App() {
       <section className="atlas-section" aria-labelledby="atlas-heading">
         <div className="section-head">
           <div><h2 id="atlas-heading">Impact map</h2><p>One target. Nearby modules. The evidence between them.</p></div>
-          <div className="map-controls"><div className="view-tabs" role="tablist" aria-label="Signals to show">
-            {(['all', 'dependencies', 'history'] as const).map((view) => <button key={view} role="tab" aria-selected={signalView === view} className={signalView === view ? 'active' : ''} onClick={() => setSignalView(view)}>{view === 'all' ? 'All signals' : view === 'dependencies' ? 'Structure & imports' : 'Co-change'}</button>)}
+          <div className="map-controls"><div className="view-tabs" role="group" aria-label="Signals to show">
+            {(['all', 'dependencies', 'history'] as const).map((view) => <button key={view} aria-pressed={signalView === view} className={signalView === view ? 'active' : ''} onClick={() => setSignalView(view)}>{view === 'all' ? 'All signals' : view === 'dependencies' ? 'Structure & imports' : 'Co-change'}</button>)}
           </div><label className="search-box"><Search size={14} /><input value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Filter files" placeholder="Find a file" /><kbd>/</kbd></label></div>
         </div>
 
@@ -184,7 +196,7 @@ function App() {
           <div className="board-axis axis-top"><span>INTERDEPENDENCE FIELD</span><span>SELECT A NODE TO INSPECT EVIDENCE</span></div>
           <div className="graph-viewport">
             <svg className="graph-svg" viewBox="0 0 900 540" role="group" aria-label="Interactive code impact map. Select a file to inspect its connections.">
-              <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="#a9b5bd" strokeWidth=".55" opacity=".55" /></pattern><marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#607080" /></marker></defs>
+              <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path className="graph-grid" d="M 24 0 L 0 0 0 24" fill="none" strokeWidth=".55" opacity=".55" /></pattern><marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path className="graph-arrow" d="M0 0 L8 4 L0 8 z" /></marker></defs>
               <rect x="0" y="0" width="900" height="540" fill="url(#grid)" />
               {mapEdges.map((edge) => {
                 const from = data.nodes.find((node) => node.id === edge.from); const to = data.nodes.find((node) => node.id === edge.to); if (!from || !to || !visibleNodes.includes(from) || !visibleNodes.includes(to)) return null;
@@ -257,7 +269,8 @@ function App() {
       </section>}
 
       <section className="connect-repo"><div className="connect-graphic" aria-hidden="true"><span /><span /><span /><span /><i /><i /></div><div><h2>Make the map yours.</h2><p>Point Stxic Atlas at a local Git folder to replace this illustrative map with signals from your own history.</p></div><form className="connect-form" onSubmit={analyze}><label className="sr-only" htmlFor="repo-path-bottom">Local Git repository folder path</label><input id="repo-path-bottom" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="C:\path\to\your\repository" /><button type="submit" disabled={busy}>{busy ? 'Scanning…' : 'Analyze local repo'}<ArrowRight size={15} /></button></form></section>
-      </> : <ReviewPanel repoPath={repoPath} onRepoPathChange={setRepoPath} />}
+      </> : null}
+      <div hidden={activeWorkspace !== 'review'}><ReviewPanel repoPath={repoPath} onRepoPathChange={setRepoPath} /></div>
 
       <footer className="footer"><div className="footer-mark"><span className="brand-glyph" aria-hidden="true"><span /><span /><span /><span /></span>STXIC ATLAS</div><span>Local-first repository intelligence <i>·</i> Source stays local.</span><span className="footer-build">Built to make the evidence visible.</span></footer>
     </main>

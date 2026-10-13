@@ -95,10 +95,10 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
     setSaving(finding.id); setError('');
     try {
       const response = await fetch('/api/review/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reviewId: result.reviewId, findingId: finding.id, vote, agents: finding.agents }) });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? 'Could not save feedback.');
+      const payload = await readResponse(response) as { useful?: unknown; incorrect?: unknown };
+      if (!payload || !Number.isInteger(payload.useful) || !Number.isInteger(payload.incorrect) || Number(payload.useful) < 0 || Number(payload.incorrect) < 0) throw new Error('The local service returned incomplete feedback totals.');
       setFeedback((current) => ({ ...current, [finding.id]: vote }));
-      setResult((current) => current ? { ...current, metrics: { ...current.metrics, usefulFeedback: payload.useful, incorrectFeedback: payload.incorrect } } : current);
+      setResult((current) => current ? { ...current, metrics: { ...current.metrics, usefulFeedback: Number(payload.useful), incorrectFeedback: Number(payload.incorrect) } } : current);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not save feedback.'); }
     finally { setSaving(''); }
   }

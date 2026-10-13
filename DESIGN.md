@@ -17,7 +17,13 @@ The interface treats repository relationships as a gridded engineering field. It
 
 Structural imports and history co-changes use different colors and line styles. The selected target uses vermilion. The graph background grid is reserved for that map surface.
 
-## Type
+## Appearance and accessibility
+
+The header offers System (default), Light, and Dark appearance. System follows the operating system, including changes while the app is open. The choice stays in browser local storage; it is not sent to the backend. Appearance is applied before React mounts. Shared semantic color tokens cover both workspaces, SVG map labels, form controls, diff excerpts, and dialogs. Dark appearance uses a charcoal canvas with raised surfaces, cyan structural signals, and vermilion selection. Both themes retain explicit labels and line styles for signal meaning.
+
+Small supporting copy has stronger contrast; important annotations have larger text. Mobile actions have at least 44px height, form focus remains visible, and a skip link goes directly to the workspace. Signal filters are pressed buttons rather than incomplete ARIA tabs.
+
+## Typefaces
 
 Barlow Condensed carries display headings; DM Sans carries interface copy; IBM Plex Mono identifies paths, measurements, and evidence labels. The font files are bundled locally with the app.
 

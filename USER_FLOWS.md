@@ -4,6 +4,10 @@ This document describes behavior that exists in the current app. Proposed future
 
 ## 1. Explore the sample
 
+The Appearance control in the header switches between System, Light, and Dark in either workspace. The browser remembers the choice across reloads. System automatically follows operating-system appearance changes.
+
+Switching workspaces retains review inputs, findings, votes, and any running review for the current page session. Reloading the page starts a new session.
+
 1. The app opens with a clearly labeled synthetic repository and its impact map.
 2. The user selects a file node or searches for a file.
 3. The map highlights related files and the evidence panel explains each relationship.

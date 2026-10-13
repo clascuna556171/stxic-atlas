@@ -14,6 +14,11 @@ export function atlasData(value: unknown): AtlasData {
     || !value.edges.every((edge) => object(edge) && ['from', 'to', 'kind', 'evidence'].every((key) => typeof edge[key] === 'string'))
     || !value.findings.every((finding) => object(finding) && ['severity', 'title', 'detail', 'evidence', 'node'].every((key) => typeof finding[key] === 'string')))
     throw new Error('The local service returned an incomplete impact map.');
+  const nodes = value.nodes;
+  if (!value.suggestedChecks.every((check) => object(check) && ['label', 'path', 'reason'].every((key) => typeof check[key] === 'string'))
+    || !value.nodes.every((node) => ['service', 'module', 'file', 'test'].includes(node.kind) && ['x', 'y', 'commits', 'churn'].every((key) => Number.isFinite(node[key])))
+    || !value.edges.every((edge) => ['imports', 'cochange', 'contains'].includes(edge.kind) && nodes.some((node: AtlasData['nodes'][number]) => node.id === edge.from) && nodes.some((node: AtlasData['nodes'][number]) => node.id === edge.to)))
+    throw new Error('The local service returned an incomplete impact map.');
   return value as unknown as AtlasData;
 }
 export function reviewStatus(value: unknown): ReviewStatus {
@@ -28,6 +33,15 @@ export function reviewResult(value: unknown): ReviewResult {
     || !Array.isArray(value.files) || !value.files.every((file) => object(file) && typeof file.path === 'string' && typeof file.additions === 'number' && typeof file.deletions === 'number')
     || !Array.isArray(value.agents) || !value.agents.every((agent) => object(agent) && typeof agent.name === 'string' && ['weight', 'findings', 'elapsedMs', 'promptTokens', 'responseTokens'].every((key) => typeof agent[key] === 'number'))
     || !Array.isArray(value.findings) || !value.findings.every((finding) => object(finding) && ['id', 'file', 'title', 'comment', 'severity'].every((key) => typeof finding[key] === 'string') && strings(finding.agents) && typeof finding.agreement === 'number'))
+    throw new Error('The local service returned an incomplete review report.');
+  const agents = ['security', 'architecture', 'quality', 'tests', 'performance'];
+  if (typeof value.diffTruncated !== 'boolean' || !['user', 'git', 'unprovided'].includes(String(value.purposeSource))
+    || !['complete', 'failed', 'skipped'].includes(String(value.chair.status)) || !Number.isFinite(value.chair.elapsedMs)
+    || !value.agents.every((agent) => agents.includes(agent.id) && ['complete', 'failed'].includes(agent.status))
+    || !value.findings.every((finding) => ['critical', 'high', 'medium', 'low'].includes(finding.severity)
+      && ['supported', 'questioned', 'dismissed', 'not-run'].includes(finding.chairVerdict)
+      && typeof finding.chairReason === 'string' && (finding.line === null || Number.isInteger(finding.line) && finding.line > 0)
+      && finding.agents.every((agent: string) => agents.includes(agent)) && Number.isFinite(finding.agreement) && finding.agreement >= 0 && finding.agreement <= 1))
     throw new Error('The local service returned an incomplete review report.');
   return value as unknown as ReviewResult;
 }
