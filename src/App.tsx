@@ -5,6 +5,7 @@ import ReviewPanel from './ReviewPanel';
 import Logo from './Logo';
 import AppearanceControl from './AppearanceControl';
 import UseGuide from './UseGuide';
+import { RequestTracker } from './requestTracker';
 import ProjectPicker, { rememberProject } from './ProjectPicker';
 import { downloadText } from './download';
 import { atlasData, readResponse } from './api';
@@ -26,6 +27,8 @@ function App() {
   const [selectedId, setSelectedId] = useState('ledger');
   const [signalView, setSignalView] = useState<SignalView>('all');
   const [repoPath, setRepoPath] = useState('');
+  const requests = useRef(new RequestTracker());
+  requests.current.update(repoPath);
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -75,16 +78,20 @@ function App() {
 
   async function analyze(event?: FormEvent) {
     event?.preventDefault();
+    const request = requests.current.begin('scan');
+    if (!request) return;
     const folderPath = repoPath.trim().replace(/^"(.*)"$/, '$1');
     if (!folderPath) {
       setError('Paste the address of your project folder from File Explorer.');
       document.getElementById('repo-path')?.focus();
+      requests.current.finish(request);
       return;
     }
     setError(''); setBusy(true);
     try {
       const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath: folderPath }) });
       const result = atlasData(await readResponse(response));
+      if (!requests.current.current(request)) return;
       setData(result);
       setRepoPath(result.repoPath ?? folderPath);
       rememberProject(result.repoPath ?? folderPath);
@@ -92,17 +99,20 @@ function App() {
       setNotice(`Analysis ready · ${result.summary.files} source files indexed`);
       setSearch('');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not analyze this repository.');
-    } finally { setBusy(false); }
+      if (requests.current.current(request)) setError(caught instanceof Error ? caught.message : 'Could not analyze this repository.');
+    } finally { requests.current.finish(request); setBusy(false); }
   }
 
   async function loadDemo() {
+    const request = requests.current.begin('scan');
+    if (!request) return;
     setBusy(true); setError('');
     try {
       const result = atlasData(await readResponse(await fetch('/api/demo')));
+      if (!requests.current.current(request)) return;
       setData(result); setSelectedId('ledger'); setSearch(''); setSignalView('all'); setRepoPath(''); setNotice('Sample repository loaded');
-    } catch { setError('Could not reach the local analysis service. Start the app, then retry.'); }
-    finally { setBusy(false); }
+    } catch { if (requests.current.current(request)) setError('Could not reach the local analysis service. Start the app, then retry.'); }
+    finally { requests.current.finish(request); setBusy(false); }
   }
   function useDemo() { void loadDemo(); }
 

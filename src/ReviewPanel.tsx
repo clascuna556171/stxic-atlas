@@ -6,6 +6,7 @@ import { disclosure, explanation, changePreview, readResponse, reviewResult, rev
 import { downloadText } from './download';
 import ProjectPicker, { rememberProject } from './ProjectPicker';
 import CloudConnection from './CloudConnection';
+import { RequestTracker } from './requestTracker';
 
 type Props = { repoPath: string; onRepoPathChange: (path: string) => void };
 type FeedbackVote = 'useful' | 'incorrect';
@@ -64,8 +65,8 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   const [intent, setIntent] = useState('');
   const [model, setModel] = useState('');
   const selectedModel = provider === 'local' ? model : cloudModel;
-  const inputIdentity = useRef('');
-  inputIdentity.current = JSON.stringify([repoPath, baseRef]);
+  const requests = useRef(new RequestTracker());
+  requests.current.update(JSON.stringify([repoPath, baseRef]));
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +74,8 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   const [saving, setSaving] = useState('');
   const [notice, setNotice] = useState('');
   const [checkingModels, setCheckingModels] = useState(false);
+  const currentReview = useRef('');
+  currentReview.current = result?.reviewId ?? '';
 
   useEffect(() => {
     void refreshModels();
@@ -104,6 +107,8 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   }, [busy]);
 
   async function refreshModels() {
+    const request = requests.current.begin('models');
+    if (!request) return;
     setCheckingModels(true);
     try {
       const response = await fetch('/api/review/status');
@@ -112,56 +117,62 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
       setModel((current) => current && next.models.includes(current) ? current : next.models.find((name) => name.startsWith('qwen3.5:9b')) ?? next.models.find((name) => name.includes('coder')) ?? next.models[0] ?? '');
     } catch {
       setStatus({ available: false, models: [], reason: 'Could not reach the local review service.' });
-    } finally { setCheckingModels(false); }
+    } finally { requests.current.finish(request); setCheckingModels(false); }
   }
 
   const additions = useMemo(() => result?.files.reduce((sum, file) => sum + file.additions, 0) ?? 0, [result]);
   const deletions = useMemo(() => result?.files.reduce((sum, file) => sum + file.deletions, 0) ?? 0, [result]);
 
   async function checkChanges() {
-    const expectedInput = inputIdentity.current;
+    const request = requests.current.begin('preview');
+    if (!request) return null;
+    try { return await collectChanges(request); }
+    finally { requests.current.finish(request); }
+  }
+  async function collectChanges(request: NonNullable<ReturnType<RequestTracker['begin']>>) {
     if (!repoPath.trim() || (comparison === 'custom' && !baseRef.trim())) { setError('Enter your project folder and, for Advanced comparison, a branch or commit name.'); return null; }
     setCheckingChanges(true); setError('');
     try {
       const payload = changePreview(await readResponse(await fetch('/api/review/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath, baseRef }) })));
-      if (expectedInput !== inputIdentity.current) return null;
+      if (!requests.current.current(request)) return null;
       setPreview(payload);
       rememberProject(repoPath);
       return payload;
     } catch (caught) {
-      if (expectedInput === inputIdentity.current) setError(caught instanceof Error ? caught.message : 'Could not check your edits.');
+      if (requests.current.current(request)) setError(caught instanceof Error ? caught.message : 'Could not check your edits.');
       return null;
     } finally { setCheckingChanges(false); }
   }
 
   async function run(mode: 'explain' | 'review', approved?: Disclosure) {
-    const expectedInput = inputIdentity.current;
+    const request = requests.current.begin('ai');
+    if (!request) return;
     setError(''); setNotice(''); setBusy(true); setActiveMode(mode);
     try {
       const changes = await checkChanges();
-      if (expectedInput !== inputIdentity.current || !changes || !changes.files.length || !changes.diff.trim()) return;
+      if (!requests.current.current(request) || !changes || !changes.files.length || !changes.diff.trim()) return;
       const input = { repoPath, baseRef, intent, model: selectedModel, provider };
       if (provider === 'cloud' && !approved) {
         const value = disclosure(await readResponse(await fetch('/api/review/disclosure', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, mode }) })));
-        if (expectedInput !== inputIdentity.current) return;
+        if (!requests.current.current(request)) return;
         setConsent(false); setPending(value); return;
       }
       setPending(null);
       const response = await fetch(mode === 'explain' ? '/api/review/explain' : '/api/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, disclosureDigest: approved?.digest }) });
       if (mode === 'explain') {
         const payload = explanation(await readResponse(response));
-        if (expectedInput !== inputIdentity.current) return;
+        if (!requests.current.current(request)) return;
         setBrief(payload);
         setNotice('Explanation ready. A deeper review is available below.');
       } else {
         const payload = reviewResult(await readResponse(response));
-        if (expectedInput !== inputIdentity.current) return;
+        if (!requests.current.current(request)) return;
         setResult(payload); setFeedback({});
         setNotice(`Review complete · ${payload.metrics.passed}/${payload.metrics.totalAgents} specialist passes`);
       }
     } catch (caught) {
-      if (expectedInput === inputIdentity.current) { setError(caught instanceof Error ? caught.message : 'Could not explain these changes.'); if (result || brief) setNotice('This attempt did not finish. The previous report is still shown.'); }
-    } finally { setBusy(false); }
+      if (requests.current.current(request)) { setError(caught instanceof Error ? caught.message : 'Could not explain these changes.'); if (result || brief) setNotice('This attempt did not finish. The previous report is still shown.'); }
+    } finally { requests.current.finish(request); setBusy(false); }
   }
 
   async function rateFinding(finding: ReviewFinding, vote: FeedbackVote) {
@@ -171,15 +182,19 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
       setNotice('Example feedback only · reviewer weights are unchanged.');
       return;
     }
+    const request = requests.current.begin('feedback');
+    if (!request) return;
+    const reviewId = result.reviewId;
     setSaving(finding.id); setError('');
     try {
       const response = await fetch('/api/review/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reviewId: result.reviewId, findingId: finding.id, vote, agents: finding.agents }) });
       const payload = await readResponse(response) as { useful?: unknown; incorrect?: unknown };
       if (!payload || !Number.isInteger(payload.useful) || !Number.isInteger(payload.incorrect) || Number(payload.useful) < 0 || Number(payload.incorrect) < 0) throw new Error('The local service returned incomplete feedback totals.');
+      if (!requests.current.current(request) || currentReview.current !== reviewId) return;
       setFeedback((current) => ({ ...current, [finding.id]: vote }));
-      setResult((current) => current ? { ...current, metrics: { ...current.metrics, usefulFeedback: Number(payload.useful), incorrectFeedback: Number(payload.incorrect) } } : current);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not save feedback.'); }
-    finally { setSaving(''); }
+      setResult((current) => current?.reviewId === reviewId ? { ...current, metrics: { ...current.metrics, usefulFeedback: Number(payload.useful), incorrectFeedback: Number(payload.incorrect) } } : current);
+    } catch (caught) { if (requests.current.current(request) && currentReview.current === reviewId) setError(caught instanceof Error ? caught.message : 'Could not save feedback.'); }
+    finally { requests.current.finish(request); setSaving(''); }
   }
 
   function downloadReport() {
@@ -229,7 +244,7 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
 
     {brief && <section ref={briefSection} tabIndex={-1} className="quick-explanation" aria-label="Change explanation">
       <div className="brief-heading"><h3>Your change, explained</h3><span>{brief.repository} · {brief.provider === 'cloud' ? 'Ollama Cloud' : 'Local AI'} · {(brief.elapsedMs / 1000).toFixed(1)}s</span><button type="button" onClick={() => downloadText([`Stxic Atlas · ${brief.repository}`, `${brief.provider} AI interpretation — not a full review`, 'What changed', brief.whatChanged, 'Why it matters', brief.whyItMatters, 'What to check', ...brief.checks.map((item) => `${item.text} (${item.file}:${item.line})`), brief.partial ? 'Incomplete coverage or invalid citations: inspect the remaining diff.' : 'Verify AI claims against the code.'].join('\n'), 'stxic-explanation.txt')}>Save explanation</button></div>
-      <h4>What changed?</h4><p>{brief.whatChanged}</p><h4>Why does it matter?</h4><p>{brief.whyItMatters}</p><h4>What should I check?</h4>
+      <h4>What changed?</h4><ExplanationText text={brief.whatChanged} /><h4>Why does it matter?</h4><ExplanationText text={brief.whyItMatters} /><h4>What should I check?</h4>
       {brief.checks.length ? <ul>{brief.checks.map((item) => <li key={item.file + item.line + item.text}><p>{item.text}</p><details><summary>{item.file}:{item.line} · inspect supporting code</summary><pre>{diffExcerpt(brief.diff, item.file, item.line).map((row) => `${row.number ?? ''} ${row.marker} ${row.text}`).join('\n')}</pre></details></li>)}</ul> : <p>No checks with valid changed-line citations were returned. Inspect the diff and run the project's tests.</p>}
       <details className="review-diff"><summary>Inspect the explanation’s exact code changes</summary><pre>{brief.diff}</pre></details><p className="setup-guidance">{brief.partial ? 'Incomplete explanation: some changes or citations could not be included. ' : ''}AI interpretation can be wrong. This explanation does not approve the change.</p>
     </section>}
@@ -295,5 +310,13 @@ function FindingCard({ finding, diff, index, feedback, saving, onFeedback }: { f
     <div className="finding-proof-row"><div className="finding-agents"><span>REVIEWER VOTES</span><div>{finding.agents.map((agent) => <span className="agent-vote" key={agent}>{agent}</span>)}</div></div><div className="finding-agreement"><span>WEIGHTED AGREEMENT</span><strong>{Math.round(finding.agreement * 100)}%</strong></div><div className={`chair-verdict chair-${finding.chairVerdict}`}><span>FINAL CHECK</span><strong>{finding.chairVerdict === 'not-run' ? 'Not run' : finding.chairVerdict}</strong>{finding.chairReason && <small>{finding.chairReason}</small>}</div></div>
     <div className="finding-feedback"><span>{feedback ? `Marked ${feedback}` : 'Was this finding useful?'}</span><div><button type="button" disabled={saving} className={feedback === 'useful' ? 'selected' : ''} onClick={() => onFeedback(finding, 'useful')}><ThumbsUp size={13} />Useful</button><button type="button" disabled={saving} className={feedback === 'incorrect' ? 'selected incorrect' : ''} onClick={() => onFeedback(finding, 'incorrect')}><ThumbsDown size={13} />Incorrect</button></div></div>
   </article>;
+}
+
+
+
+function ExplanationText({ text }: { text: string }) {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 55) return <p>{text}</p>;
+  return <><p>{words.slice(0, 55).join(' ')}…</p><details className="full-explanation"><summary>Read full explanation</summary><p>{text}</p></details></>;
 }
 

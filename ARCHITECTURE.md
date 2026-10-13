@@ -74,6 +74,10 @@ Cloud transport follows [Ollama's official cloud API](https://docs.ollama.com/cl
 
 Frontend requests retain the repository/comparison identity they began with. If a project is changed from the other workspace while AI is running, late previews, disclosures, results, and errors from the old input are discarded. Changing project/comparison also clears old ready notices and feedback. The active request still finishes on the server; this is result isolation, not inference cancellation.
 
+The final stability pass uses requestTracker.ts to track input revisions, including switching away and back to the same input. Synchronous per-operation locks block repeated clicks before React rerenders. Scan/sample requests share a lock; AI and its preview use separate locks. Feedback additionally checks the original review ID before updating visible votes or totals. Model refresh, cloud connection/disconnection, and folder browsing also reject overlapping actions. These guards do not cancel inference already sent or add automatic retries.
+
+Long quick-explanation paragraphs show their first 55 words with an explicit ellipsis and expandable full text. The actual model response remains in page memory and readable exports; this display preview is not a new model-generated summary.
+
 
 ## Scan coverage and readable failures
 

@@ -1,5 +1,13 @@
 # Stxic Atlas verification — October 13, 2026
 
+## Final stability wrap
+
+27 tests passed, including new request-lifecycle cases for duplicate clicks, safe retries, late cleanup, AI preflight isolation, and A → B → A input revisions. The production build passed. A local synthetic browser explanation was started before switching to another folder and back; its obsolete result was discarded. Feedback response guards also retain the original review ID so old votes cannot update a newer report.
+
+A fresh local retry after that switch completed in 1.4 seconds. The small model returned no valid check citations, so coverage remained explicitly incomplete; this verifies retry/orchestration behavior, not model accuracy. The browser report retained its exact diff and full original paragraphs.
+
+Scan/sample loading, previews, AI runs, feedback, model refresh, cloud setup, and folder browsing now use synchronous overlap guards. Long explanations have expandable display previews; their original text and exact diff remain inspectable/exportable. Storage, existing cloud consent, server inference lifetime, and local-first privacy boundaries are unchanged. No paid cloud requests were used for this verification.
+
 ## Flutter scanning, readable failures, and simpler UI
 
 - 24 automated tests passed. New cases scan a synthetic Flutter project (Dart relative/local package imports and subfolder resolution), exclude generated exports before the source-file cap, and prove a simulated cloud 402 stops after one request. Existing privacy, diff citation, partial-result, malformed-response, and consent tests still pass.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { readResponse } from './api';
 const storageKey = 'stxic-atlas-recent-projects';
 function readRecent(): string[] {
@@ -11,8 +11,11 @@ export default function ProjectPicker({ onChoose, disabled = false }: { onChoose
   const [recent, setRecent] = useState(readRecent);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState('');
+  const inFlight = useRef(false);
   useEffect(() => { const update = () => setRecent(readRecent()); window.addEventListener('stxic-projects', update); window.addEventListener('storage', update); return () => { window.removeEventListener('stxic-projects', update); window.removeEventListener('storage', update); }; }, []);
   async function browse() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setPicking(true); setError('');
     try {
       const value = await readResponse(await fetch('/api/project/pick', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })) as { repoPath?: unknown };
@@ -20,7 +23,7 @@ export default function ProjectPicker({ onChoose, disabled = false }: { onChoose
       if (typeof value.repoPath !== 'string') throw new Error('The folder selection was incomplete. Paste the folder address instead.');
       rememberProject(value.repoPath); onChoose(value.repoPath);
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not open the folder window.'); }
-    finally { setPicking(false); }
+    finally { inFlight.current = false; setPicking(false); }
   }
   return <div className="project-picker">
     <button type="button" disabled={disabled || picking} onClick={browse}>{picking ? 'Choose in the folder window…' : 'Browse folders'}</button>

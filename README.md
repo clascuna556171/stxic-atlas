@@ -1,5 +1,7 @@
 # Stxic Atlas
 
+The final stability pass prevents overlapping scan/AI/setup actions and stale results after project changes, including switching away and back. Long explanations have a short display preview with expandable full text; downloads retain the original explanation. Reloading still starts a new page session, and a running server request may finish after the page leaves it.
+
 **See what a change touches, and why.** Stxic Atlas is a local-first repository analysis demo that combines source-level import links with historical co-change signals to make a code change's possible impact easier to inspect.
 
 ## Run locally

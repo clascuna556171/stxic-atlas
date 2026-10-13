@@ -72,6 +72,8 @@ Windows folder browsing preserves the current selection when cancelled and valid
 
 If the project changes through File connections during AI work, the request finishes but its old result is not placed under the new project. Previous ready messages, findings, and votes clear with a changed project/comparison. This does not cancel inference already in progress.
 
+Switching away and back to the original folder/comparison still invalidates the old request. Repeated clicks do not start duplicate scans or AI work. A delayed rating response cannot change a newer report's visible votes. Long explanations can be expanded with Read full explanation, and saving an explanation includes the original full paragraphs.
+
 
 ## 7. Scan a Flutter project and recover from cloud failure
 
