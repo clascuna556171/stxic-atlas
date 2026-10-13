@@ -287,10 +287,14 @@ test('Flutter projects scan Dart imports and generated exports do not hide sourc
   assert.ok(map.edges.some((edge) => edge.kind === 'imports' && edge.from === 'lib/main.dart' && edge.to === 'lib/local.dart'));
   await mkdir(join(dartRoot, 'brag-output-synthetic'), { recursive: true });
   for (let index = 0; index < 25; index++) await writeFile(join(dartRoot, 'brag-output-synthetic', `${index}.json`), '{}');
+  await mkdir(join(dartRoot, 'dist-landing'), { recursive: true });
+  await writeFile(join(dartRoot, 'dist-landing', 'bundle.js'), 'const generated = true;');
+  await mkdir(join(dartRoot, '.vercel'), { recursive: true });
+  await writeFile(join(dartRoot, '.vercel', 'project.json'), '{}');
   await writeFile(join(dartRoot, 'lib', 'new.dart'), 'const newValue = 2;\n');
   const preview = await previewChanges({ repoPath: dartRoot });
   assert.deepEqual(preview.files.map((file) => file.path), ['lib/new.dart']);
-  assert.equal(preview.generatedExcluded?.length, 25);
+  assert.equal(preview.generatedExcluded?.length, 27);
   assert.equal(preview.untrackedOmitted.length, 0);
   assert.ok(preview.diff.includes('const newValue = 2'));
 });

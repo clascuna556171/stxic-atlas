@@ -26,6 +26,8 @@ Unlike a commit browser or an architecture map alone, Stxic Atlas combines struc
 
 The application is intended to run locally against a repository. A clearly labeled synthetic example will be available so a reviewer can explore the interface without providing a repository.
 
+The public landing page provides a separate, clearly labeled synthetic map and review walkthrough without installation. Its purpose is to explain the product and guide visitors to local setup. It cannot scan visitor folders or run AI; real repository work stays in the local app.
+
 ## Capabilities and Constraints
 
 - The project is a local-first web application with a React and TypeScript frontend and a Node.js service.
@@ -37,7 +39,7 @@ The application is intended to run locally against a repository. A clearly label
 
 ## Evidence on Hand
 
-The workspace was empty when work began. No production repository, customer data, performance measurements, testimonials, or external deployment is provided. The initial experience will use explicitly labeled synthetic demonstration data.
+The public landing page is deployed on Vercel; repository analysis and AI review run through the local application. Demonstrations are explicitly synthetic. No customer data, adoption figures, testimonials, or measured user-impact claims are supplied. Dated implementation checks are recorded in [docs/verification.md](docs/verification.md).
 
 ## Product Principles
 

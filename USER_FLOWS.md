@@ -2,6 +2,12 @@
 
 This document describes behavior that exists in the current app. Proposed future workflows must be labeled as proposals until implemented.
 
+## Public introduction
+
+The Vercel landing page works without the local service. Explore an example scrolls to a visibly synthetic file map. Select a file using pointer, Enter, or Space and filter All/Imports/History to inspect its fictional connections. A no-connections state names the next action. The separate review walkthrough switches between a plain synthetic explanation and its cited synthetic diff; no model runs.
+
+Run locally and Use your own project lead to setup commands, requirements, and the repository setup guide. Copy commands reports success or offers manual selection if the clipboard is unavailable. Native FAQ disclosures work with the keyboard. Appearance is stored only in this site's browser origin. The page does not request local API access, repository paths, credentials, or source files.
+
 ## 1. Explore the sample
 
 The Appearance control in the header switches between Light, Dark, and Auto in either workspace. The browser remembers the choice across reloads. Auto automatically follows operating-system appearance changes.

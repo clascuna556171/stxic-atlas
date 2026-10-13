@@ -201,7 +201,7 @@ function App() {
         <div className="stat-cell"><span className="stat-label">SAVED CHANGES</span><strong>{data.summary.commits.toLocaleString()}</strong><span className="stat-note">recent history examined</span></div>
         <div className="stat-cell"><span className="stat-label">SOURCE FILES</span><strong>{data.summary.files}</strong><span className="stat-note">tracked in this view</span></div>
         <div className="stat-cell"><span className="stat-label">CONTRIBUTORS</span><strong>{data.summary.contributors}</strong><span className="stat-note">in analyzed history</span></div>
-        <div className="stat-cell stat-risk"><span className="stat-label">FILES TO CHECK</span><strong>{selectedIncident + 1} files</strong><span className="stat-note">{selectedIncident} connected evidence links</span></div>
+        <div className="stat-cell stat-risk"><span className="stat-label">FILES TO CHECK</span><strong>{selectedIncident + 1} file{selectedIncident === 0 ? '' : 's'}</strong><span className="stat-note">{selectedIncident} connected evidence links</span></div>
       </section>
 
       <section className="atlas-section" aria-labelledby="atlas-heading">
@@ -223,7 +223,7 @@ function App() {
                 const active = edge.from === selected?.id || edge.to === selected?.id;
                 const quiet = selected && !active;
                 const midX = (from.x + to.x) / 2; const midY = (from.y + to.y) / 2 - 10;
-                return <g key={`${edge.from}-${edge.to}`} className={quiet ? 'edge quiet' : 'edge'}>
+                return <g key={`${edge.kind}-${edge.from}-${edge.to}`} className={quiet ? 'edge quiet' : 'edge'}>
                   <path className={`edge-line ${edge.kind} ${active ? 'active' : ''}`} d={`M ${from.x + 76} ${from.y + 23} C ${midX} ${midY}, ${midX} ${midY}, ${to.x + 76} ${to.y + 23}`} strokeWidth={active ? 2.3 : 1.25} markerEnd={edge.kind !== 'cochange' ? 'url(#arrow)' : undefined} />
                   {active && <g className="edge-label" transform={`translate(${midX - 62},${midY - 5})`}><rect width="124" height="20" rx="2" /><text x="62" y="13" textAnchor="middle">{edge.kind === 'imports' ? 'IMPORT' : edge.kind === 'contains' ? 'SOURCE FOLDER' : `${edge.evidence.match(/\d+/)?.[0] ?? 'PAST'} JOINT COMMITS`}</text></g>}
                 </g>;
@@ -250,7 +250,7 @@ function App() {
         <article className="detail-panel target-panel">
           <div className="panel-kicker"><span className="panel-index">A</span><span>FOCUS FILE</span><span className="panel-rule" /></div>
           <div className="target-title"><div className="file-glyph"><FileCode2 size={18} /></div><div><h3>{selected?.label}</h3><p>{selected?.group} <span>·</span> {selected?.commits} commits in history</p></div></div>
-          <div className="focus-stat-row"><div><span>Change frequency</span><b>{selected?.commits ?? 0} commits</b></div><div><span>Connected signals</span><b>{selectedIncident} files</b></div></div>
+          <div className="focus-stat-row"><div><span>Change frequency</span><b>{selected?.commits ?? 0} commits</b></div><div><span>Connected signals</span><b>{selectedIncident} file{selectedIncident === 1 ? '' : 's'}</b></div></div>
           <div className="selected-note"><span className="note-marker">i</span><p>{selected?.kind === 'test' ? 'A test file helps show which behavior has known coverage. A missing link does not prove a behavior is untested.' : 'Impact signals show direct imports and files that changed alongside this target. Use them as a review guide, not as a prediction.'}</p></div>
           <button className="copy-button" onClick={copySummary}><FileCode2 size={15} />{copied ? 'Summary copied' : 'Copy review summary'}<ArrowRight size={14} /></button>
         </article>
@@ -260,7 +260,7 @@ function App() {
           <div className="evidence-list">
             {connected.length ? connected.map((edge) => {
               const otherId = edge.from === target.id ? edge.to : edge.from; const other = data.nodes.find((node) => node.id === otherId);
-              return <button className="evidence-row" key={`${edge.from}-${edge.to}`} onClick={() => { setSearch(''); setSelectedId(otherId); }}>
+              return <button className="evidence-row" key={`${edge.kind}-${edge.from}-${edge.to}`} onClick={() => { setSearch(''); setSelectedId(otherId); }}>
                 <span className={`evidence-mark ${edge.kind}`} aria-hidden="true">{edge.kind === 'cochange' ? <Activity size={13} /> : <ArrowDownRight size={14} />}</span>
                 <span className="evidence-copy"><strong>{other?.id ?? otherId}</strong><small>{edge.evidence}</small></span>
                 <span className={`signal-tag ${edge.kind}`}>{edge.kind === 'imports' ? 'IMPORT' : edge.kind === 'contains' ? 'CONTAINS' : 'HISTORY'}</span>

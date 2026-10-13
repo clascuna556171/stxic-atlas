@@ -3,18 +3,24 @@ import type { AtlasData, AtlasEdge } from '../src/types.js';
 import { readRepositoryFile, repositoryRoot, runGit } from './repository.js';
 import { isGeneratedPath } from './sourceScope.js';
 
+export function parseHistory(log: string) {
+  return log.split('\x1e').filter((entry) => entry.length > 0).map((entry) => {
+    const [header, ...paths] = entry.split('\0');
+    // Git inserts one newline before the first filename; preserve the filename itself.
+    if (paths.length) paths[0] = paths[0].replace(/^\r?\n/, '');
+    return { author: header.split('\x1f')[1], files: paths.filter((path) => path.length > 0) };
+  });
+}
+
 export async function analyzeRepository(value: unknown): Promise<AtlasData> {
   const root = await repositoryRoot(value);
   const hasHistory = await runGit(root, ['rev-parse', '--verify', 'HEAD']).then(() => true, () => false);
   const [{ stdout: log }, { stdout: files }, { stdout: branch }] = await Promise.all([
-    hasHistory ? runGit(root, ['log', '-n', '400', '--format=%x1e%H%x1f%an', '--name-only', '--']) : Promise.resolve({ stdout: '' }),
+    hasHistory ? runGit(root, ['log', '-n', '400', '-z', '--format=%x1e%H%x1f%an', '--name-only', '--']) : Promise.resolve({ stdout: '' }),
     runGit(root, ['ls-files', '-z']),
     runGit(root, ['branch', '--show-current']),
   ]);
-  const commits = log.split('\x1e').filter((entry) => entry.trim()).map((entry) => {
-    const [header, ...paths] = entry.split(/\r?\n/);
-    return { author: header.split('\x1f')[1], files: paths.filter(Boolean) };
-  });
+  const commits = parseHistory(log);
   const paths = files.split('\0').filter((path) => /\.(dart|ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php|vue|svelte)$/.test(path))
     .filter((path) => !isGeneratedPath(path)).slice(0, 140);
   if (!paths.length) throw new Error('This project has no supported code saved in Git yet. Choose the app’s source folder or ask its developer to add the source files to Git. Flutter/Dart, JavaScript, TypeScript, Python, Go, Rust, Java, Kotlin, Ruby, PHP, Vue, and Svelte are supported.');

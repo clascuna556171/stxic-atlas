@@ -7,7 +7,8 @@ This describes the implementation as it exists today. For product goals and cons
 - **Frontend:** React 19 and TypeScript, bundled by Vite. `src/main.tsx` mounts `src/App.tsx`; `src/ReviewPanel.tsx` owns the review workflow UI; `src/types.ts` defines shared response shapes.
 - **Backend:** Express 5 routes in `server/index.ts`, deterministic impact analysis in `server/analyze.ts`, and local-model orchestration in `server/review.ts`. `server/repository.ts` centralizes argument-based Git calls, repository-root validation, and bounded source reads that exclude symlinked path components.
 - **Development:** Vite serves the UI and proxies `/api` to Express at `127.0.0.1:4317` (`vite.config.ts`). `npm run dev` starts both processes.
-- **Production:** the Express service serves `dist/` when a production build exists.
+- **Local production:** the Express service serves `dist/` when a production build exists.
+- **Public landing page:** `landing/` is a separate React/TypeScript entry built by `vite.landing.config.ts` into `dist-landing/`. `vercel.json` selects `npm run build:landing` and publishes only this static output. It shares the logo, appearance controls, theme helpers, types, and visibly synthetic review fixture; it never mounts the local application or requests its API. A production content security policy disallows fetch/WebSocket connections. Local fonts are bundled with the page. `.vercelignore` excludes server code, local data, test fixtures, project documents, and unused local-app source from deployment uploads.
 
 ## Impact-analysis data path
 
@@ -15,7 +16,7 @@ This describes the implementation as it exists today. For product goals and cons
 
 This analyzer is deterministic and bounded; it does not execute project code. Import extraction is pattern-based, not a complete parser, and does not cover every language's import syntax. The map only displays a subset of analyzed files.
 
-Commit boundaries are explicitly delimited when reading history; all counted relationships use the same bounded window of up to 400 commits. Tracked paths are NUL-delimited. Imports and co-changes have separate observation labels; import observations never claim historical coupling.
+Commit boundaries are explicitly delimited when reading history; all counted relationships use the same bounded window of up to 400 commits. Tracked and history paths are NUL-delimited so whitespace and quoted characters remain part of filenames. Imports and co-changes have separate observation labels; import observations never claim historical coupling.
 
 ## Review data path
 
@@ -58,7 +59,7 @@ The frontend and backend use the review types in `src/types.ts`. Frontend respon
 - Project documents and code diffs are untrusted input to the model, not instructions; the review prompt explicitly says so.
 - Source files and Git output are bounded. Symlinks and oversized files are skipped in review context collection.
 - Model output must be treated as fallible. Keep evidence and interpretation distinguishable in API types and UI copy.
-- Never describe the current local app as providing hosted deployment, webhooks, CI integration, or GitHub comments; those are not implemented.
+- The public landing page is a hosted introduction and synthetic walkthrough. The repository-analysis service remains local and is not publicly hosted. Webhooks, CI integration, and GitHub comments are not implemented.
 
 
 ## Explanation, cloud, and project selection
@@ -84,6 +85,8 @@ Long quick-explanation paragraphs show their first 55 words with an explicit ell
 repositoryRoot accepts a selected subfolder only when its canonical real path is contained by the Git-reported canonical root. Reads remain bounded to that root, and analyzeRepository returns repoPath so the UI can show the actual project root. Dart source and bounded relative/local package imports are mapped; up to eight package roots use bounded pubspec.yaml reads. This remains pattern-based, not a complete Dart parser.
 
 sourceScope.ts identifies conventional generated directories and brag-output-* exports. Untracked generated paths are excluded before the 20-file source cap and returned separately as generatedExcluded. Supported Dart untracked source is included. Genuine omitted/unreadable source still produces incomplete coverage. Tracked diffs retain Git's evidence as before.
+
+The separate landing build (`dist-landing/`) and Vercel metadata (`.vercel/`) also count as generated paths. Building or deploying this project does not consume the untracked source preview budget.
 
 AIServiceError carries sanitized status-specific recovery text. The first cloud specialist runs before the other four to detect account/model denial. A denied first request aborts the run; failures later in a run preserve completed specialist results. When no specialists complete, the final model call is not made. Local specialists continue to run concurrently.
 

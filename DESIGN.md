@@ -54,3 +54,9 @@ Organize the main task around project choice, factual change preview, and a shor
 ## Clear appearance and guidance
 
 Light/Dark/Auto are labeled pressed buttons in a group, with 44px mobile targets and an independent full-width row on narrow screens. Auto follows the operating system. Optional inline guidance and the help dialog explain the actual task and the Git prerequisite. Cloud confirmation leads with filenames, bounded-coverage notes, and plain consent; raw context is an expandable detail. A zero-completion failure uses a warning icon and explicit failure wording, never a success checkmark.
+
+## Public landing page
+
+The landing page retains the Stxic mark, bundled Barlow Condensed/DM Sans/IBM Plex Mono fonts, and semantic palette. A working synthetic relationship field accompanies a concrete code-change headline. Selection and import/history filters update an adjacent evidence list; a native-button keyboard interaction matches pointer use. Solid and dashed lines distinguish source and history beyond color.
+
+The page progresses through evidence sources, a synthetic explanation with its inspectable diff, the local/cloud privacy boundary, installation commands, and native FAQ disclosures. It uses no invented adoption metrics or testimonials. Light/Dark/Auto remain available with browser-local persistence. Narrow layouts stack the sections and retain 44px actions; long paths can wrap and diff content scrolls within its own view. Reduced motion removes smooth anchor scrolling. Local setup is an instruction, not a remote repository connection.

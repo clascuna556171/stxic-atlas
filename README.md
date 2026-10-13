@@ -1,111 +1,202 @@
 # Stxic Atlas
 
-The final stability pass prevents overlapping scan/AI/setup actions and stale results after project changes, including switching away and back. Long explanations have a short display preview with expandable full text; downloads retain the original explanation. Reloading still starts a new page session, and a running server request may finish after the page leaves it.
+**Understand what a code change touches—and inspect the evidence behind it.**
 
-**See what a change touches, and why.** Stxic Atlas is a local-first repository analysis demo that combines source-level import links with historical co-change signals to make a code change's possible impact easier to inspect.
+A local-first code explorer with a file connection map, plain-language AI explanations, and optional deeper change review. Built as a full-stack engineering portfolio project using React, TypeScript, Express, Git, Ollama, and SQLite.
+
+[Explore the public demo](https://stxic-atlas.vercel.app) · [Run locally](#run-locally) · [Set up AI](#set-up-ai) · [Architecture](ARCHITECTURE.md)
+
+The public website is a **synthetic interactive walkthrough**. To scan your own repository or use AI, run the local app. All example names, people, counts, code, and findings are fictional.
+
+![Local file connection map showing the synthetic example](docs/assets/file-connections.jpg)
+
+## What it does
+
+Stxic Atlas helps developers and people reviewing their work answer: **“If this file changes, what else should I check?”**
+
+| Tool | What you see | Source |
+| --- | --- | --- |
+| File connections | Direct imports and files that repeatedly changed together | Current source and bounded Git history; deterministic evidence |
+| Check changes | Changed files, line counts, and an inspectable diff | Git; no AI required |
+| Explain with AI | What changed, why it matters, and suggested checks tied to changed lines | One model pass; interpretation |
+| Run deeper review | Specialist findings, reviewer agreement, final verdicts, and supporting code | Five focused passes and a skeptical final reviewer; interpretation |
+
+You can inspect and export evidence, save readable reports, and explicitly rate review findings. Incomplete reviews remain visibly incomplete.
+
+## Why this project exists
+
+A diff shows the edited lines, but the next review question often lives elsewhere: which file imports this module, which test usually changes with it, or which contract deserves another look? Import relationships and shared commit history provide different clues. Keeping them together makes those follow-up questions easier to investigate.
+
+AI adds a second challenge: a confident explanation is difficult to trust when its evidence is hidden. Stxic exposes the changed code, separates repository facts from model interpretation, and preserves failures instead of turning missing work into a clean result.
+
+The engineering goal was to build a useful local workflow across repository analysis, model orchestration, accessible UI, and explicit data boundaries. An AI review is a fallible aid to human inspection, not approval.
+
+## How it works
+
+```mermaid
+flowchart LR
+    Repository[Local Git project] --> Evidence[Bounded source and history]
+    Evidence --> Map[File connection map]
+    Repository --> Diff[Bounded change preview]
+    Diff --> Choice{Choose AI provider}
+    Choice --> Local[Local Ollama]
+    Choice --> Consent[Preview and confirm context]
+    Consent --> Cloud[Ollama Cloud]
+    Local --> Review[Explanation or deeper review]
+    Cloud --> Review
+    Review --> Report[Validated findings and exact diff]
+    Report --> Feedback[Explicit ratings in local SQLite]
+```
+
+The analyzer reads imports and recent Git history without executing repository code. AI receives the bounded diff, optional change intent, recent commit subjects, and allowlisted project notes. Model replies are validated against changed files and lines before reaching the interface.
+
+Deeper review uses security, architecture, quality, testing, and performance perspectives. Findings are grouped and weighted; a final reviewer challenges them against the same diff. These are separate passes of the selected model, rather than five independently trained models. Agreement is a review signal, not a calibrated probability of correctness.
+
+### Engineering decisions
+
+| Decision | Why | Implementation |
+| --- | --- | --- |
+| Local repository service | A public browser cannot directly read a visitor's project folders | [API](server/index.ts), [repository boundaries](server/repository.ts) |
+| Separate source/history signals | Imports and repeated co-changes answer different questions | [Impact analyzer](server/analyze.ts) |
+| Explanation before deeper review | A short explanation can help without waiting for six model calls | [Workflow UI](src/ReviewPanel.tsx), [orchestration](server/review.ts) |
+| Citations and partial results | Failed passes and truncated diffs must not resemble a completed clean review | [Types](src/types.ts), [response guards](src/api.ts) |
+| Explicit cloud consent | Users should know exactly which context leaves their computer | [Transport](server/ai.ts), [disclosure checks](server/review.ts) |
+| Bounded human feedback | Ratings tune reviewer influence without claiming model training | [SQLite and weighting](server/review.ts) |
+| Separate static landing build | The public presentation must not expose the local API | [Landing page](landing/), [Vercel configuration](vercel.json) |
+
+### A concrete example
+
+The built-in **synthetic** review illustrates a discount calculation. Its stated intent is to apply discounts before tax. The edited function subtracts the discount from the returned total, while tax still uses the original subtotal.
+
+With an illustrative subtotal of 100, a discount of 20, and 10% tax, that code returns 90; the stated intent expects 88. The finding cites `checkout/totals.ts:4` and exposes the exact diff so the reader can verify the reasoning.
+
+This is authored sample data. No model runs when it is loaded, and its ratings do not change stored reviewer weights.
+
+<details>
+<summary>See the synthetic change-review walkthrough</summary>
+
+![Synthetic review with its cited code and final-review explanation](docs/assets/change-review.jpg)
+
+</details>
 
 ## Run locally
 
-Requirements: Node.js 22.13 or newer and Git. Local AI reviews also need [Ollama](https://ollama.com/) and an installed chat model.
+**Requirements:** Node.js **22.13 or newer**, Git, and a local Git project. Ollama is optional unless you want local AI.
 
 ```sh
-npm install
+git clone https://github.com/clascuna556171/stxic-atlas.git
+cd stxic-atlas
+npm ci
 npm run dev
 ```
 
-Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, use **Browse folders** (Windows) or enter its absolute folder path in **Scan project**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
+Open **http://127.0.0.1:5175/**. The app starts with a synthetic map. Development uses a fixed port and reports a conflict if another process occupies it.
 
-Use **Appearance** in the header to choose Light, Dark, or Auto. Auto follows your operating system; the preference is saved only in this browser. Switching between Impact map and AI change review preserves review inputs, results, feedback, and an in-progress request for the current page session.
+1. Choose **Browse folders** on Windows, or paste an absolute local path. A subfolder resolves to its enclosing Git project.
+2. Use **File connections** to inspect imports and shared change history.
+3. Open **AI change review → Check changes** to preview edits without AI.
+4. Choose **Current edits**, **Latest saved version**, or **Advanced comparison**. AI review needs a saved Git baseline; the latest-version comparison needs at least two commits and includes current edits too.
 
-The local API rejects non-loopback hostnames, remote origins, cross-site requests, and form POSTs. It accepts JSON requests from the local workspace, permits only one running review, and disables repository-configured Git filesystem-monitor helpers. These boundaries protect a local developer tool; the app is not designed to be exposed as a public repository-analysis service.
+Without a model, **Explore example review** still works. Light, Dark, and Auto appearance are available throughout the app.
 
-For a walkthrough without a model, open **AI change review → Explore example review**. This loads an explicitly synthetic discount/tax change with a finding, cited diff, specialist votes, and chair explanation. Example feedback is temporary and never changes the saved reviewer weights. Exports retain the `synthetic` flag.
+## Set up AI
 
-To use **AI change review**, install and start Ollama, then download a local model. For example:
+| Mode | Requirements | Code processing |
+| --- | --- | --- |
+| No AI | Running local app and Git project | On your computer |
+| Local AI — default | Ollama running with an installed local chat model | `127.0.0.1:11434` |
+| Optional cloud AI | Running local app, internet access, your own Ollama Cloud key and model access | Ollama Cloud after context confirmation |
 
-```sh
-ollama pull qwen3.5:9b
-```
+### Local Ollama
 
-Open the **AI change review** tab, enter your repository root, choose a base ref (defaults to `HEAD`), and optionally describe the change's purpose. The review compares the working tree with that ref and includes supported untracked source files. It supplies `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, and `docs/architecture.md` when present, and shows which documents were included. Five focused deeper-review passes use the selected model, followed by a final reviewer. Cloud checks access through the first pass before starting the other four. The findings, changed lines, model votes, weighted agreement, elapsed time, and Ollama token counts are shown together. Feedback adjusts agent weights gradually based on past ratings; feedback is stored in SQLite under `~/.change-atlas/feedback.sqlite` (Windows: `%LOCALAPPDATA%\.change-atlas\feedback.sqlite`).
+1. [Download Ollama](https://ollama.com/download) and start it. If its service is not already running, use `ollama serve`.
+2. Download a local chat model that fits your hardware. For example, [Qwen 3.5 9B](https://ollama.com/library/qwen3.5:9b):
 
-Local AI sends context only to Ollama on `127.0.0.1:11434`. Optional Ollama Cloud sends the displayed, bounded code and context to `https://ollama.com/api/chat` only after explicit confirmation. Local inference still uses your computer's memory and processing time. The model's review is an interpretation, not proof: inspect the cited diff and run the project's own checks. Review runs also record latency and token usage, but the app does not train models, evolve prompts automatically, post GitHub comments, or provide a GitHub webhook/CI integration.
+   ```sh
+   ollama pull qwen3.5:9b
+   ollama list
+   ```
 
-Each review sends at most 38,000 diff characters to every specialist and the chair. Oversized diffs, omitted untracked files, malformed specialist responses, or failed/incomplete chair responses produce **Partial review**, even when the completed passes return no findings. Token usage includes the chair. Feedback can only refer to saved findings; the server derives the participating reviewers from its own records.
+3. In **AI change review**, select **On this computer**, click **Refresh AI list**, and choose the installed model. The interface reports **Local model ready** when a usable model is available.
+4. Choose a Git project, click **Check changes**, then **Explain with AI**. **Run deeper review** is a separate action.
 
-## Checking edits without AI
+Local inference needs no API key. Model size affects memory use and waiting time; small models can misread code. See [Ollama's official setup guide](https://docs.ollama.com/quickstart). Stxic excludes remote/cloud-tagged models from the local list.
 
-Open **AI change review**, paste your project folder, and select **Check changes**. This uses Git only and lists changed files and line counts. **Current edits** compares with the latest commit; **Latest saved version** compares with its parent and needs at least two commits. **Advanced comparison** accepts a simple branch or commit ID. If there are no changes, the screen explains what to try next. Quoted Windows folder paths are accepted; GitHub URLs, missing folders, and folders without Git produce specific guidance.
+### Optional Ollama Cloud
 
-Choose **Explain with AI** for one plain-language explanation: what changed, why it matters, and up to three suggested checks with valid changed-line citations. This is not a full review. Choose **Run deeper review** for five specialist passes and a final reviewer. Adding the intended behavior in the optional note helps the model understand your change. The larger installed `qwen3.5:9b` model is preferred when available; other installed models remain selectable. Small models may misread code. The elapsed timer indicates waiting time, not percent complete. Reports can be saved as readable text or JSON. AI can be wrong even when all passes complete.
+1. Create your own key in [Ollama account settings](https://ollama.com/settings/keys).
+2. In the local app, select **Where AI runs → Ollama Cloud**, connect the key, and choose a listed model. This direct cloud route does not require a local Ollama installation.
+3. Start an explanation or deeper review. Inspect the outgoing filenames, project notes, and exact bounded context, then explicitly confirm consent.
 
-## Checks
+Cancel or Escape sends no inference request. Changed context requires another preview. A saved key/catalog does not guarantee model access; account or allowance errors offer recovery guidance. Provider usage limits apply; see [Ollama Cloud](https://docs.ollama.com/cloud).
+
+Keys stay in local server memory until disconnect or restart. They are not saved in browser storage, reports, SQLite, or source control. Providers never switch automatically.
+
+## Privacy and boundaries
+
+- **Scanning and change previews:** local Git/source reads; no repository code execution or upload during scanning.
+- **Local AI:** bounded context goes only to local Ollama. **Selected cloud AI:** confirmed context goes to Ollama Cloud.
+- **Storage:** recent project paths and appearance in browser storage; review metadata and explicit feedback in local SQLite. SQLite does not store source, diffs, or finding prose. Windows uses `%LOCALAPPDATA%\.change-atlas\feedback.sqlite`; otherwise `~/.change-atlas/feedback.sqlite` is used when `LOCALAPPDATA` is unset.
+- **HTTP boundary:** loopback binding, Host/Origin checks, cross-site rejection, and JSON-only API POSTs. The service is intended for local use.
+- **Untrusted context:** documents, diffs, and commit messages are model context, never system instructions.
+
+Reads, Git output, history, request payloads, and review context are bounded. Symlinked source paths are skipped. Feedback adjusts bounded reviewer weights; it does not train models or rewrite prompts.
+
+## Trade-offs and current limits
+
+- The map considers up to **400 commits** and **140 tracked source files**, displaying up to **28 files**. Co-change pairs use at most 60 source files per commit.
+- Import detection is pattern-based, primarily JavaScript/TypeScript-style relative imports and relative/local-package Dart imports. Other supported languages contribute history signals; this is not a complete dependency parser.
+- AI receives at most **38,000 diff characters**. Omitted source, truncation, malformed replies, and failed passes produce an incomplete result.
+- Connections suggest where to investigate. AI can miss defects or propose incorrect findings even when every pass completes.
+- Webhooks, GitHub review comments, CI review integration, model training, and automatic prompt evolution are not implemented.
+
+## Verification
 
 ```sh
 npm test
 npm run build
+npm run build:landing
+npm audit
 ```
 
-The automated suite creates isolated synthetic Git repositories and checks import/history evidence, file boundaries, model-response failures, and SQLite feedback. It mocks model responses and does not require Ollama or write into your normal feedback database.
+Tests use disposable synthetic Git repositories, mocked model replies, and an isolated SQLite store. They cover evidence, file boundaries, malformed/partial results, cloud consent, provider failures, feedback, and stale requests. The dated [verification record](docs/verification.md) lists checks actually run and their limits.
 
-To verify the actual installed local model:
+For an **actual installed local model** check:
 
 ```sh
-npm run smoke:review
-# Optionally select a model explicitly:
-npm run smoke:review -- qwen2.5-coder:1.5b
+npm run smoke:review -- qwen3.5:9b
 ```
 
-The smoke check creates a synthetic checkout and isolated feedback database under `.test-data/`, runs the five specialists and chair, and saves `report.json`. It leaves that checkout for inspection and exits unsuccessfully if any pass fails. The fixture is synthetic; the model responses are an actual local run. `.test-data/` is excluded from Git.
+This opt-in run saves a synthetic checkout, isolated database, and report under ignored `.test-data/`. It checks orchestration, not finding accuracy.
 
-## What it demonstrates
+## Public landing page
 
-- An interactive relationship map for source files.
-- Structural links inferred from relative imports.
-- Historical links inferred when files change in the same commits.
-- A review view that lets you inspect the evidence behind a connection.
-- A local-first AI review workflow with optional, explicitly confirmed Ollama Cloud with five specialist passes, weighted findings, a skeptical consensus-chair pass, and SQLite-backed feedback.
-- A Git-diff review that labels user-provided intent and commit-message context separately from model interpretations.
-- JSON export and a copyable review summary.
-- A React and TypeScript interface backed by a Node.js service.
+The [Vercel site](https://stxic-atlas.vercel.app) introduces the product with a synthetic map and review. It cannot read visitor folders and performs no AI inference.
 
-## Project documentation
+```sh
+npm run dev:landing       # http://127.0.0.1:5176/
+npm run build:landing     # static dist-landing/ output
+npm run preview:landing   # preview the production build
+```
 
-- [Project context](PROJECT_CONTEXT.md)
-- [Product definition](PRODUCT.md)
-- [Design guide](DESIGN.md)
-- [User flows](USER_FLOWS.md)
-- [Architecture](ARCHITECTURE.md)
-- [Contributor and coding-agent rules](AGENTS.md)
-- [Verification results](VERIFICATION.md)
-- [Final security and interface audit](AUDIT.md)
+`vercel.json` selects the landing build; `npm run build` remains the local-app build. Fonts and examples are bundled. `.vercelignore` excludes the backend, local data, tests, and documentation assets from deployment uploads. Publish from an authorized account with `npx vercel deploy --prod --project stxic-atlas`.
 
-## How to read the signals
+## Repository guide
 
-`IMPORT` is a relative source import found in the current checkout. `HISTORY` means two tracked source files appeared in the same commit at least twice in the analyzed commit window. A relationship suggests where to investigate; it does not predict a bug or prove that another file will break.
+| Path | Purpose |
+| --- | --- |
+| `src/` | Local React UI, response types, validation, synthetic review |
+| `server/` | Local API, Git/source analysis, AI transport, orchestration, SQLite |
+| `landing/` | Separate public presentation and synthetic examples |
+| `tests/` · `scripts/` | Regressions and opt-in real-model smoke check |
+| `docs/` | Current showcase screenshots and dated verification |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime, data paths, trust boundaries |
+| [PRODUCT.md](PRODUCT.md) · [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Audience, scope, constraints |
+| [DESIGN.md](DESIGN.md) · [USER_FLOWS.md](USER_FLOWS.md) | Interface decisions and existing workflows |
+| [AGENTS.md](AGENTS.md) | Contributor rules |
 
-The starter analyzer inspects at most 400 recent commits and 140 tracked source files, displaying up to 28 of the most frequently touched files in its map. Very wide commits are limited to 60 analyzed source files when forming co-change pairs. Source reads are limited to 250,000 bytes for impact analysis and 150,000 bytes for untracked review files. Symlinks, including symlinked parent directories, are skipped. Co-change detection is deterministic and explainable. It does not execute repository code or upload source. The initial local analyzer focuses on relative JavaScript/TypeScript-style imports, including `.js` specifiers resolving to TypeScript source, plus relative/local-package Dart imports; other supported languages contribute file-level history. The review workflow is a local LLM aid; it can miss defects or return false positives, and incomplete agent runs are labeled as partial.
+Build outputs, tool settings, databases, historical screenshots, and development notes are excluded from the published tree. Source, lockfile, tests, and the documentation needed to understand and run the project remain tracked.
 
-## Inspiration and distinction
+## Related work
 
-This project takes cues from [Repo Visualizer](https://github.com/Jany-M/repo-visualizer), which makes repository evolution visible, and [git-history-ui](https://github.com/beingmartinbmc/git-history-ui), which brings local Git history into a browser. Stxic Atlas narrows the experience to a different job: inspect the evidence around one proposed change, combining current imports with co-change history in one reviewable map.
-
-All repository names, people, counts, and sample findings in the default experience are synthetic.
-
-
-## Optional cloud AI and easier setup
-
-Local is the default and never falls back to cloud. Select **Where AI runs → Ollama Cloud**, enter your own Ollama API key, and choose a model returned by the live cloud catalog. The key is sent to the local server and kept only in its memory, until **Disconnect and clear key** or server restart. It is not put in browser storage, reports, SQLite, or source control. Listing models confirms catalog reachability; account authorization is checked by the first inference request. Provider usage limits and charges apply; see [Ollama Cloud](https://docs.ollama.com/cloud) and its [privacy policy](https://ollama.com/privacy).
-
-Before every cloud explanation or deeper review, a native confirmation dialog displays the exact repository context: bounded diff, branch/comparison, optional intent, recent commit subjects, and bounded allowlisted documents. Stxic's fixed review instructions accompany that context; the final deeper-review request also includes generated findings. A SHA-256 digest binds confirmation to that context, model, and action. Changed context requires another preview. No automatic cloud retries or fallback occur, and redirects are rejected. Inspect for private code or secrets before confirming.
-
-**Browse folders** opens the Windows folder chooser and validates a Git root. Cancellation keeps the existing folder; a two-minute timeout offers a paste-path fallback. Other operating systems can paste a path. Up to five successfully checked/selected project paths are saved in this browser; **Forget recent** removes them. No project source is saved there. Explanations retain their own exact diff for inspection and can be downloaded as text. A failed new request keeps the prior report; choosing another repository or comparison clears it.
-
-
-## Easier scanning and getting started
-
-Flutter/Dart projects are supported, including relative Dart imports and local package imports identified from a bounded pubspec.yaml. Selecting a subfolder resolves to its enclosing Git project; scanning shows the canonical project folder. Git is still required and project files are never modified. Generated untracked files in build/cache directories and brag-output-* exports do not use the 20-file source preview budget. The preview labels their exclusion. Real omitted source files still make coverage incomplete.
-
-The header has Light, Dark, and Auto buttons. Auto follows the device; appearance stays browser-local. **New here? See how to use Stxic** and the help button explain project setup, saved versions, the map, local/cloud AI, and the optional deeper check in ordinary language.
-
-Cloud confirmation starts with filenames and project notes. **View exact data being sent** expands the original inspectable context; the consent and context-change guard remain. Cloud access/model errors (including 402) stop further review calls when the first reviewer is blocked. Check the cloud account's allowance/access or explicitly choose local AI; scans never need cloud access. A failed review with no completed checks is not shown as a green success.
+[Repo Visualizer](https://github.com/Jany-M/repo-visualizer) explores repository evolution, and [git-history-ui](https://github.com/beingmartinbmc/git-history-ui) brings Git history into a browser. Stxic Atlas focuses on one change: inspect its source relationships, shared history, and optional AI review with underlying evidence visible.

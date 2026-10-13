@@ -12,20 +12,21 @@
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",
     "build": "tsc -b && vite build",
+    "dev:landing": "vite --config vite.landing.config.ts",
+    "build:landing": "tsc -p tsconfig.landing.json && vite build --config vite.landing.config.ts",
+    "preview:landing": "vite preview --config vite.landing.config.ts --host 127.0.0.1 --port 5176 --strictPort",
     "start": "tsx server/index.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
-    "cors": "^2.8.5",
     "express": "^5.1.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",

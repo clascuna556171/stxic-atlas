@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": ["landing", "src/Logo.tsx", "src/AppearanceControl.tsx", "src/theme.ts", "src/reviewDemo.ts", "src/types.ts"]
+}

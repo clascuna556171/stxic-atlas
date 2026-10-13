@@ -26,6 +26,7 @@ Show what evidence led to a signal. Keep scanning local; require an outgoing-con
 - Findings can be inspected against the exact diff and exported as JSON.
 - A visibly synthetic review walkthrough works without Ollama. Its feedback stays in memory and cannot tune real reviewer weights.
 - Malformed responses, failed chair passes, truncated diffs, and omitted untracked files produce an incomplete review state.
+- A separate static landing page introduces the product with an interactive synthetic file map, a synthetic review/diff walkthrough, and local installation instructions. Vercel hosts this presentation only; the local repository service is not deployed.
 
 ## Not implemented
 
@@ -39,6 +40,7 @@ The original idea brief describes possible CLI, webhook, GitHub comment, CI, sta
 - [Architecture](ARCHITECTURE.md) — current runtime and data flow.
 - [Contributor rules](AGENTS.md) — instructions for coding agents and contributors.
 - [README](README.md) — setup and user-facing operating instructions.
+- [Verification](docs/verification.md) — checks actually run and their limits.
 
 
 ## Explanation and setup
