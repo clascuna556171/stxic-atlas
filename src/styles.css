@@ -27,9 +27,46 @@
   color-scheme: light;
 }
 
+.project-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; }
+.project-picker button, .project-picker select, .ai-choice select, .cloud-connection input, .cloud-connection button, .deeper-action button, .brief-heading button, .dialog-actions button { min-height: 44px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); padding: 8px 12px; font: inherit; font-size: 13px; }
+.project-picker label { min-width: 0; max-width: 100%; }
+.project-picker select { max-width: 100%; width: 220px; }
+.project-picker p { color: var(--danger); font-size: 13px; }
+.ai-choice { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin: 18px 0; }
+.ai-choice label, .cloud-connection label { display: grid; gap: 7px; font-size: 13px; }
+.ai-choice p { flex: 1; min-width: 220px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.cloud-connection { border: 1px solid var(--line-strong); background: var(--paper); padding: 16px; margin-bottom: 18px; }
+.cloud-connection p, .cloud-dialog p { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.cloud-connection a { color: var(--blue); }
+.cloud-connection > div { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.cloud-connection small { display: block; margin-top: 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.quick-explanation { border-top: 2px solid var(--blue); background: var(--paper); padding: 24px; margin: 24px 0; }
+.brief-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.brief-heading h3 { margin: 0; margin-right: auto; }
+.brief-heading span { color: var(--muted); font-size: 12px; }
+.quick-explanation h4 { margin: 22px 0 6px; font-size: 15px; }
+.quick-explanation p { font-size: 14px; line-height: 1.7; max-width: 80ch; }
+.quick-explanation ul { padding-left: 22px; }
+.quick-explanation details { font-size: 12px; color: var(--blue); overflow-wrap: anywhere; }
+.quick-explanation pre, .cloud-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.7 var(--mono); background: var(--surface); padding: 16px; color: var(--ink); }
+.deeper-action { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+.deeper-action > div { flex: 1; }
+.deeper-action h3 { margin: 0 0 6px; font-size: 17px; }
+.deeper-action p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.swarm-layout.explanation-first { grid-template-columns: minmax(0, 1fr); }
+.cloud-dialog { width: min(780px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; background: var(--paper); color: var(--ink); border: 1px solid var(--line-strong); padding: 24px; }
+.cloud-dialog::backdrop { background: #0009; }
+.cloud-dialog h2 { margin-top: 0; font-size: 23px; }
+.cloud-dialog pre { max-height: 40dvh; overflow-y: auto; }
+.consent-label { display: flex; align-items: start; gap: 10px; font-size: 14px; line-height: 1.6; }
+.consent-label input { width: 20px; height: 20px; flex: 0 0 20px; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 12px; margin-top: 20px; }
+.dialog-actions button:last-child { background: var(--action); color: var(--on-action); }
+@media (max-width: 600px) { .quick-explanation { padding: 16px; } .cloud-dialog { padding: 16px; } .ai-choice label, .ai-choice select { width: 100%; } }
+
 * { box-sizing: border-box; }
-html { min-width: 340px; scroll-behavior: smooth; }
-body { margin: 0; min-width: 340px; min-height: 100vh; background: var(--canvas); }
+html { min-width: 300px; scroll-behavior: smooth; }
+body { margin: 0; min-width: 300px; min-height: 100vh; background: var(--canvas); }
 button, input { font: inherit; }
 button { color: inherit; }
 ::selection { background: var(--accent); color: var(--on-action); }

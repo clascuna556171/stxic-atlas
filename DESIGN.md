@@ -42,3 +42,8 @@ Barlow Condensed carries display headings; DM Sans carries interface copy; IBM P
 - Review examples carry a persistent synthetic notice above the result. Example votes are temporary; they must not resemble saved feedback from a real run.
 - The review report labels its summary source as model interpretation, Git counts, or a synthetic example. Incomplete reviews explain which passes or source coverage are missing.
 - The field guide uses a native modal dialog for Escape, contained focus, and restoration to the opening control.
+
+
+## Explanation first
+
+Organize the main task around project choice, factual change preview, and a short AI explanation. Keep specialist weights and debate details out of the initial screen; they appear when a deeper review runs or has results. Quick explanations use three ordinary questions, with expandable code evidence rather than unsupported certainty. Local/cloud selection states the privacy boundary before submission. A native confirmation dialog exposes outgoing cloud context and requires explicit consent, with cancellation and Escape available. Folder browsing and recent paths complement the pasted path without replacing it. Existing palette, fonts, themes, keyboard controls, and reduced-motion behavior remain.

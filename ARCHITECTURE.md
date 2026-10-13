@@ -21,7 +21,7 @@ Commit boundaries are explicitly delimited when reading history; all counted rel
 
 `ReviewPanel.tsx` checks `/api/review/status`, then posts review inputs to `/api/review`. The Express route delegates to `runReview` in `server/review.ts`. That module validates the repository root and Git ref, collects a bounded Git diff and supported untracked source files, and reads a small allowlist of project documents.
 
-The module calls Ollama's local `/api/chat` endpoint at `127.0.0.1:11434`. Five specialist requests run concurrently against the selected installed model. Structured responses are validated and restricted to changed files and lines. Findings are grouped, weighted agreement is calculated, and a chair request challenges existing findings against the diff. Failed specialist passes produce a partial review state.
+`server/ai.ts` routes model calls to local Ollama by default, or the fixed HTTPS Ollama Cloud endpoint after explicit provider selection and verified context confirmation. It never falls back across providers. Five specialist requests run concurrently against the selected installed model. Structured responses are validated and restricted to changed files and lines. Findings are grouped, weighted agreement is calculated, and a chair request challenges existing findings against the diff. Failed specialist passes produce a partial review state.
 
 Requests explicitly set `think: false` so supported models return an answer without spending the bounded output budget on optional thinking; see [Ollama's thinking API documentation](https://ollama.com/blog/thinking). The prompts ask for plain-language consequences and a before/after summary. A valid model summary and valid available verdicts survive incomplete final-review votes; the chair still fails and the decision remains partial. `changeSummarySource` labels model interpretation independently from chair completion. A request-changes decision requires a supported finding with a valid changed-line citation; file-level or questioned concerns remain inspectable as review findings.
 
@@ -54,8 +54,20 @@ The frontend and backend use the review types in `src/types.ts`. Frontend respon
 - Development binds explicitly to IPv4 loopback at port 5175 and fails if that port is occupied, avoiding silent port changes.
 - `src/theme.ts` resolves a browser-local appearance preference and system color scheme. No theme preference or additional repository data is transmitted.
 
-- Repository paths, source, diffs, and feedback are handled locally by the app. Review prompts go only to the local Ollama endpoint.
+- Repository paths, source, diffs, and feedback are handled locally by the app. Local prompts go to local Ollama. Optional cloud prompts go to Ollama Cloud only after a preview digest matches the freshly collected context, model, and action.
 - Project documents and code diffs are untrusted input to the model, not instructions; the review prompt explicitly says so.
 - Source files and Git output are bounded. Symlinks and oversized files are skipped in review context collection.
 - Model output must be treated as fallible. Keep evidence and interpretation distinguishable in API types and UI copy.
 - Never describe the current local app as providing hosted deployment, webhooks, CI integration, or GitHub comments; those are not implemented.
+
+
+## Explanation, cloud, and project selection
+
+- `POST /api/review/explain`: one model call returning a plain explanation, bounded checks restricted to actual added lines, coverage status, and its exact diff. Does not persist source, prose, or review metrics.
+- `POST /api/review/disclosure`: collects context locally and returns its readable JSON and SHA-256 digest, bound to model and explain/review mode. No inference or cloud request occurs. Both cloud inference paths recollect context and compare the digest before sending. The fixed instructions and generated chair findings are disclosed as accompanying data. Source changes outside the bounded context are never transmitted.
+- `GET /api/cloud/status`, `POST /api/cloud/connect`, `POST /api/cloud/disconnect`: cloud catalog/session management. Connect reads the fixed cloud catalog with a bounded key; no repository data is sent. The catalog may be public, so a saved key does not claim verified inference authorization. Disconnect erases in-memory key/catalog. Status and exports never expose credentials. Provider errors never echo response bodies, and redirects are forbidden.
+- `POST /api/project/pick`: Windows-only, one static PowerShell STA invocation via argument-based execFile displays a folder chooser; no path or ref is interpolated. Validates the returned repository root; cancellation returns null, and timeout is bounded to two minutes. Other platforms use pasted paths.
+- `src/ProjectPicker.tsx` remembers at most five successful project paths in browser local storage. A Forget recent action clears them; source is not stored.
+- `ReviewPanel.tsx` owns quick/deeper modes and a native cloud-confirmation dialog with Escape, focus containment, and a required unchecked consent control. Keys are cleared from the password input when submitted and retained only in server memory. Provider selection defaults to local on reload. Local tags marked as cloud/remote are excluded to prevent accidental hosted inference through the local runtime.
+
+Cloud transport follows [Ollama's official cloud API](https://docs.ollama.com/cloud). The provider can process the approved code; local-first is not a claim that explicitly selected cloud processing remains on the machine. Quick explanation and deeper review share the single-flight API limit. Findings retain diff citations, partial-run handling, bounded reviewer feedback, and existing local-only metadata storage.

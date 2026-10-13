@@ -31,9 +31,9 @@ The application is intended to run locally against a repository. A clearly label
 - The project is a local-first web application with a React and TypeScript frontend and a Node.js service.
 - Repository findings should be derived from inspectable evidence and distinguish analysis from inference.
 - The demonstration must not imply that synthetic sample repository data is real.
-- The impact map works without an external account, API key, or cloud service. AI review requires an optional Ollama service and model running locally.
+- The impact map works without an external account, API key, or cloud service. AI explanation/review uses local Ollama by default, or explicitly chosen Ollama Cloud with a user-provided API key.
 - Local review feedback is stored in SQLite outside the scanned repository; it adjusts bounded agent weights from explicit human ratings.
-- User-provided repositories and private code must remain local in the intended product design.
+- Repository scanning remains local. Selected bounded code/context may leave the computer only for an explicitly previewed and confirmed cloud AI action.
 
 ## Evidence on Hand
 
@@ -47,3 +47,8 @@ The workspace was empty when work began. No production repository, customer data
 - Distinguish measured signals from inferred risk.
 - Label user-provided intent, Git metadata, deterministic facts, and model interpretations separately.
 - Make the first visit useful even without importing a repository.
+
+
+## Approved optional cloud scope
+
+The user approved optional cloud support alongside a simpler explanation workflow. Cloud is an explicit choice, never a fallback. One explanation pass precedes the optional deeper review; it does not imply a security audit or approval. Keys remain in local server memory, and each cloud action requires inspection of its outgoing repository context.

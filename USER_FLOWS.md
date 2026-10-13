@@ -19,7 +19,7 @@ Switching workspaces retains review inputs, findings, votes, and any running rev
 
 ## 2. Analyze a local repository
 
-1. The user enters the absolute path to a local Git repository root.
+1. The user chooses Browse folders on Windows, selects a recent project, or enters the absolute path to a local Git repository root.
 2. Stxic Atlas validates that Git can identify the selected folder as the repository root.
 3. The local server reads bounded Git history, tracked paths, current source files, and the current branch.
 4. It builds source nodes, relative-import links where supported, and co-change links where files appeared together in multiple commits.
@@ -31,7 +31,7 @@ Switching workspaces retains review inputs, findings, votes, and any running rev
 
 ## 3. Review a local change with the swarm
 
-The screen is labeled **AI change review**. Choose Current edits, Latest saved commit + edits, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** checks the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
+The screen is labeled **AI change review**. Choose Current edits, Latest saved commit + edits, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** performs one plain explanation; **Run deeper review** performs five specialist passes and the final reviewer. Both check the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
 
 1. The user opens **AI change review**, selects a local repository, and chooses a comparison ref (default `HEAD`).
 2. They select an installed local Ollama chat model and may enter why the change was made.
@@ -43,13 +43,13 @@ The screen is labeled **AI change review**. Choose Current edits, Latest saved c
 8. The user marks findings useful or incorrect. Votes are saved locally and influence bounded future agent weights.
 9. The user can export the review as JSON.
 
-**Boundary:** code and project documents passed to Ollama remain on the local Ollama endpoint. Model findings are interpretations; users should inspect the cited diff and run their own checks. A partial run is not a complete review.
+**Boundary:** local code and project documents passed to local Ollama remain on the computer. Cloud mode transmits approved context to Ollama Cloud, after the confirmation flow below. Model findings are interpretations; users should inspect the cited diff and run their own checks. A partial run is not a complete review.
 
 ## 4. When the local model is unavailable
 
 1. The impact map and synthetic example remain available.
 2. The review screen reports Ollama/model availability and offers a refresh action.
-3. Review submission stays disabled until a local chat model is available.
+3. Local AI submission stays disabled until a local chat model is available. The user may explicitly choose and connect Ollama Cloud instead.
 4. **Explore example review** remains available. It opens an explicitly synthetic report with cited code and example votes; rating a finding only changes temporary UI state.
 
 **Boundary:** do not silently fall back to a cloud model or send code to a hosted service.
@@ -60,3 +60,12 @@ The screen is labeled **AI change review**. Choose Current edits, Latest saved c
 - A review with failed specialists or chair, a diff over 38,000 characters, or omitted untracked files is labeled **Partial review**. The screen explains the missing work while preserving available findings and diff evidence.
 - Malformed API responses show a readable error instead of rendering an invalid report.
 - The field guide supports Escape, focus containment, and focus restoration through a native modal dialog.
+
+
+## 6. Quick explanation and optional cloud
+
+Choose a project → Check changes → Explain with AI. A single pass shows What changed, Why it matters, and What should I check. Each returned check must cite an added line; invalid checks are removed and the explanation is marked incomplete. Open the supporting excerpt or exact explanation diff, or save a readable explanation. Run deeper review is a separate action and preserves existing inspectable findings. Changing the project/comparison clears old results; failed requests for the same inputs preserve available reports.
+
+Local AI is the default. To use cloud, explicitly select Ollama Cloud, connect a personal key, and choose a listed model. An explanation or deeper review first opens a native dialog showing exact outgoing repository context, destination, model, request count, and usage notice. Consent starts unchecked. Cancel/Escape sends nothing. Confirming sends only if freshly read context still matches the displayed preview. Any mismatch, provider failure, or disconnected key offers an error; there is no local/cloud fallback. Disconnect clears the server's key.
+
+Windows folder browsing preserves the current selection when cancelled and validates a chosen Git root. A timed-out chooser offers the pasted-path alternative. Successful selections/checks populate up to five recent browser-local paths; Forget recent removes them.

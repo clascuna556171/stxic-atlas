@@ -11,6 +11,8 @@ import { reviewDemo } from '../src/reviewDemo.ts';
 const temporary = await mkdtemp(join(tmpdir(), 'stxic-atlas-test-'));
 process.env.LOCALAPPDATA = temporary;
 const { previewChanges, runReview, saveReviewFeedback, closeReviewStore } = await import('../server/review.ts');
+const { explainChanges, prepareDisclosure, ollamaStatus } = await import('../server/review.ts');
+const { connectCloud, cloudStatus, disconnectCloud } = await import('../server/ai.ts');
 after(async () => {
   // Only remove this test's freshly generated temporary folder.
   assert.ok(resolve(temporary).startsWith(resolve(tmpdir()) + sep));
@@ -167,4 +169,104 @@ test('truncated source coverage can never produce a complete clean review', asyn
 test('option-like and shell-like refs are rejected before local inference', async () => {
   await assert.rejects(runReview({ repoPath: root, baseRef: '--output=private', model: 'fixture-model' }), /simple Git ref/);
   await assert.rejects(runReview({ repoPath: root, baseRef: 'HEAD;echo injected', model: 'fixture-model' }), /simple Git ref/);
+});
+
+test('quick explanation uses one local request and rejects unsupported citations', async () => {
+  await writeFile(join(root, 'a.ts'), "import { b } from './b.js';\nexport const a = b + 2;\n");
+  const original = globalThis.fetch;
+  let chats = 0;
+  globalThis.fetch = async (url, init) => {
+    assert.ok(String(url).startsWith('http://127.0.0.1:11434/'));
+    if (String(url).endsWith('/tags')) return Response.json({ models: [{ name: 'fixture' }, { name: 'remote:cloud', remote_host: 'https://ollama.com' }] });
+    chats++;
+    assert.equal(JSON.parse(String(init?.body)).think, false);
+    return Response.json({ message: { content: JSON.stringify({ whatChanged: 'The calculation adds two instead of one.', whyItMatters: 'The returned result increases by one.', checks: [{ text: 'Check the result.', file: 'a.ts', line: 2 }, { text: 'Invented.', file: 'outside.ts', line: 2 }] }) } });
+  };
+  try {
+    assert.deepEqual((await ollamaStatus()).models, ['fixture']);
+    const result = await explainChanges({ repoPath: root, model: 'fixture' });
+    assert.equal(chats, 1); assert.equal(result.provider, 'local');
+    assert.equal(result.checks.length, 1); assert.equal(result.partial, true);
+  } finally { globalThis.fetch = original; }
+});
+
+test('cloud consent binds code, intent, model and action; disconnect removes credentials', async () => {
+  const original = globalThis.fetch;
+  let chats = 0;
+  globalThis.fetch = async (url, init) => {
+    assert.ok(String(url).startsWith('https://ollama.com/'), 'cloud must not fall back to local or another host');
+    assert.equal((init?.headers as Record<string, string>).Authorization, 'Bearer synthetic-test-key');
+    assert.equal(init?.redirect, 'error');
+    if (String(url).endsWith('/tags')) return Response.json({ models: [{ name: 'fixture' }] });
+    chats++;
+    return Response.json({ message: { content: JSON.stringify({ whatChanged: 'Calculation changed.', whyItMatters: 'The result changes.', checks: [] }) } });
+  };
+  try {
+    const status = await connectCloud('synthetic-test-key');
+    assert.equal(status.available, true); assert.ok(!JSON.stringify(status).includes('synthetic-test-key'));
+    const input = { repoPath: root, model: 'fixture', provider: 'cloud', intent: 'Synthetic intent' };
+    const disclosure = await prepareDisclosure({ ...input, mode: 'explain' });
+    assert.equal(chats, 0); assert.ok(disclosure.content.includes('Synthetic intent'));
+    await assert.rejects(explainChanges(input), /cloud preview again/);
+    await assert.rejects(explainChanges({ ...input, intent: 'Changed', disclosureDigest: disclosure.digest }), /cloud preview again/);
+    await assert.rejects(runReview({ ...input, disclosureDigest: disclosure.digest }), /cloud preview again/);
+    await writeFile(join(root, 'consent.ts'), 'export const changedAfterPreview = true;');
+    try { await assert.rejects(explainChanges({ ...input, disclosureDigest: disclosure.digest }), /cloud preview again/); }
+    finally { await unlink(join(root, 'consent.ts')); }
+    assert.equal(chats, 0);
+    const result = await explainChanges({ ...input, disclosureDigest: disclosure.digest });
+    assert.equal(result.provider, 'cloud'); assert.equal(chats, 1);
+    assert.ok(!JSON.stringify(result).includes('synthetic-test-key'));
+    disconnectCloud(); assert.equal(cloudStatus().available, false);
+    await assert.rejects(explainChanges({ ...input, disclosureDigest: disclosure.digest }), /Connect Ollama Cloud/);
+    assert.equal(chats, 1);
+  } finally { disconnectCloud(); globalThis.fetch = original; }
+});
+
+test('cloud provider errors are sanitized and never trigger local fallback', async () => {
+  const original = globalThis.fetch;
+  let chats = 0;
+  globalThis.fetch = async (url) => {
+    assert.ok(String(url).startsWith('https://ollama.com/'));
+    if (String(url).endsWith('/tags')) return Response.json({ models: [{ name: 'fixture' }] });
+    chats++;
+    return new Response('secret echo synthetic-test-key', { status: 401 });
+  };
+  try {
+    await connectCloud('synthetic-test-key');
+    const input = { repoPath: root, model: 'fixture', provider: 'cloud' };
+    const disclosure = await prepareDisclosure({ ...input, mode: 'explain' });
+    await assert.rejects(explainChanges({ ...input, disclosureDigest: disclosure.digest }), /Cloud authorization failed/);
+    assert.equal(chats, 1);
+  } finally { disconnectCloud(); globalThis.fetch = original; }
+});
+
+test('deeper cloud review uses the confirmed context for six requests and labels its provider', async () => {
+  const original = globalThis.fetch;
+  let chats = 0;
+  globalThis.fetch = async (url, init) => {
+    assert.ok(String(url).startsWith('https://ollama.com/'));
+    if (String(url).endsWith('/tags')) return Response.json({ models: [{ name: 'fixture' }] });
+    chats++;
+    const request = JSON.parse(String(init?.body));
+    const context = JSON.parse(request.messages[1].content);
+    assert.ok(context.diff.includes('export const a = b + 2'));
+    return Response.json({ message: { content: JSON.stringify(context.proposedFindings ? { changeSummary: 'The return value increases.', purposeSummary: 'Not provided.', votes: [] } : { summary: 'Synthetic mock.', findings: [] }) } });
+  };
+  try {
+    await connectCloud('synthetic-test-key');
+    const input = { repoPath: root, model: 'fixture', provider: 'cloud' };
+    const consent = await prepareDisclosure({ ...input, mode: 'review' });
+    const report = await runReview({ ...input, disclosureDigest: consent.digest });
+    assert.equal(report.provider, 'cloud'); assert.equal(report.decision, 'looks-clear');
+    assert.equal(report.metrics.passed, 5); assert.equal(report.chair.status, 'complete'); assert.equal(chats, 6);
+    assert.equal(reviewResult(report).provider, 'cloud');
+  } finally { disconnectCloud(); globalThis.fetch = original; }
+});
+
+test('malformed quick explanations fail without discarding factual preview', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => String(url).endsWith('/tags') ? Response.json({ models: [{ name: 'fixture' }] }) : Response.json({ message: { content: '{"whatChanged":"Changed","checks":[]}' } });
+  try { await assert.rejects(explainChanges({ repoPath: root, model: 'fixture' }), /incomplete explanation/); assert.ok((await previewChanges({ repoPath: root })).diff.includes('b + 2')); }
+  finally { globalThis.fetch = original; }
 });

@@ -5,7 +5,7 @@
 Stxic Atlas is a local-first web app for understanding the likely impact of a code change. It combines two distinct tools:
 
 1. **Impact map:** deterministic signals from a repository's current source imports and recent Git history.
-2. **AI change review:** five specialist prompts sent to a model running in local Ollama, followed by a skeptical chair pass that checks proposed findings against the diff.
+2. **AI change review:** a quick plain-language explanation followed by an optional deeper review with five specialists and a skeptical chair, using local Ollama by default or explicitly confirmed Ollama Cloud that checks proposed findings against the diff.
 
 The product is a portfolio project for demonstrating full-stack engineering, explainable analysis, local AI orchestration, and careful handling of uncertainty.
 
@@ -15,7 +15,7 @@ Engineers exploring an unfamiliar repository or preparing to explain a change to
 
 ## Product promise
 
-Show what evidence led to a signal. Keep repository source on the user's machine. Clearly label synthetic data, deterministic facts, user-provided context, Git metadata, and model interpretations.
+Show what evidence led to a signal. Keep scanning local; require an outgoing-context preview and confirmation before optional cloud inference. Clearly label synthetic data, deterministic facts, user-provided context, Git metadata, and model interpretations.
 
 ## Current scope
 
@@ -29,7 +29,7 @@ Show what evidence led to a signal. Keep repository source on the user's machine
 
 ## Not implemented
 
-The original idea brief describes possible CLI, webhook, GitHub comment, CI, static-analysis-tool, prompt-evolution, and golden-dataset features. These are ideas, not current capabilities. Do not present them as implemented or add paid hosted AI/API dependencies. The app currently does not train a model or automatically rewrite prompts and heuristics.
+The original idea brief describes possible CLI, webhook, GitHub comment, CI, static-analysis-tool, prompt-evolution, and golden-dataset features. These are ideas, not current capabilities. Do not present them as implemented. The user approved optional Ollama Cloud with their own key; no other hosted integration is implemented. The app currently does not train a model or automatically rewrite prompts and heuristics.
 
 ## Documents
 
@@ -39,3 +39,8 @@ The original idea brief describes possible CLI, webhook, GitHub comment, CI, sta
 - [Architecture](ARCHITECTURE.md) — current runtime and data flow.
 - [Contributor rules](AGENTS.md) — instructions for coding agents and contributors.
 - [README](README.md) — setup and user-facing operating instructions.
+
+
+## Explanation and setup
+
+A single-pass explanation describes what changed, why it matters, and suggested checks tied to changed lines. It is separate from deeper review. Windows folder browsing, five browser-local recent paths, AI readiness, and cloud key connection controls simplify setup. Cloud keys exist only in local server memory; scans and change previews never call cloud AI.

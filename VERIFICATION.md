@@ -1,5 +1,15 @@
 # Stxic Atlas verification — October 13, 2026
 
+## Explanation workflow and optional cloud
+
+- `npm test`: 22 passed. New checks cover a single local explanation call, remote-model exclusion, invalid citations, malformed explanations, cloud key clearing, source/intent/action-bound consent, six-call cloud review orchestration, sanitized authorization failures, and no provider fallback. Cloud responses and credentials in these tests are synthetic mocks.
+- `npm run build`: passed after the workflow and accessibility updates; the final narrow-panel adjustment was rebuilt before publishing. `git diff --check` passed.
+- Actual local browser run on the existing synthetic checkout: `qwen3.5:9b` produced an explanation and a valid changed-line check in 46.5 seconds. Code excerpt expansion and downloaded explanation text were inspected. A small-model trial took 4.4 seconds but returned invalid check citations, correctly removed and labeled incomplete. Model interpretation can still be inaccurate; neither run establishes general accuracy.
+- Browser layout checks: 390px viewport / 381px page, and 310px viewport / 301px page, with no horizontal overflow. Light and dark setup, keyboard appearance selection, local/cloud switching, disabled cloud actions without a key, and password-field presentation were checked. `design/stxic-cloud-mobile.png` captures the new dark cloud setup.
+- Live cloud inference was not run because no real API key was supplied. Native Windows folder-window selection/cancellation was not manually operated in this session; its static argument-based launcher, timeout, cancellation result, and repository validation were inspected. Pasted-path scanning remains available.
+
+Privacy changes: scanning/change previews stay local. Explicitly confirmed cloud actions send the displayed bounded context to Ollama Cloud. Keys live only in local server memory until disconnect/restart; five recent successful folder paths can be stored in browser local storage and cleared through Forget recent. Quick explanations retain their diff in page memory and do not write source/prose to SQLite. Existing deeper-review metadata/feedback storage remains local. No automatic cloud fallback, source upload during scans, or hosted Git integration was added.
+
 ## Final audit update
 
 ## Usability repair update

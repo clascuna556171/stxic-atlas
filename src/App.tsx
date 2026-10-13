@@ -3,6 +3,7 @@ import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, CircleHelp, 
 import type { AtlasData, AtlasNode } from './types';
 import ReviewPanel from './ReviewPanel';
 import Logo from './Logo';
+import ProjectPicker, { rememberProject } from './ProjectPicker';
 import { downloadText } from './download';
 import { atlasData, readResponse } from './api';
 import { applyAppearance, readAppearance, type Appearance } from './theme';
@@ -84,6 +85,7 @@ function App() {
       const result = atlasData(await readResponse(response));
       setData(result);
       setRepoPath(folderPath);
+      rememberProject(folderPath);
       setSelectedId(result.nodes[0]?.id ?? '');
       setNotice(`Analysis ready · ${result.summary.files} source files indexed`);
       setSearch('');
@@ -158,11 +160,11 @@ function App() {
       <section className="page-intro">
         <div className="intro-title-group">
           <div className="title-line"><h1>{activeWorkspace === 'impact' ? 'Understand your project' : 'Explain your changes'}</h1></div>
-          <p>{activeWorkspace === 'impact' ? 'See which files depend on each other, so you know what else to check.' : 'See what you edited, then ask local AI to explain possible problems.'}</p>
+          <p>{activeWorkspace === 'impact' ? 'See which files depend on each other, so you know what else to check.' : 'See what you edited, get a plain explanation, then check further if needed.'}</p>
         </div>
         {activeWorkspace === 'impact' && <form className="repo-form" onSubmit={analyze}>
           <label htmlFor="repo-path" className="sr-only">Local Git repository folder path</label>
-          <div className="repo-input-wrap"><Command size={15} /><input id="repo-path" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="Paste a local repository path" autoComplete="off" /><button type="submit" className="scan-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <><span>Scan project</span><ArrowRight size={15} /></>}</button></div>
+          <ProjectPicker onChoose={setRepoPath} disabled={busy} /><div className="repo-input-wrap"><Command size={15} /><input id="repo-path" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="Paste a local repository path" autoComplete="off" /><button type="submit" className="scan-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <><span>Scan project</span><ArrowRight size={15} /></>}</button></div>
           <p className="folder-hint">Open your project in File Explorer and copy the folder address. It must have Git history.</p>
           {error && <div className="form-error" role="alert">{error}</div>}
         </form>}
@@ -277,7 +279,7 @@ function App() {
       </> : null}
       <div hidden={activeWorkspace !== 'review'}><ReviewPanel repoPath={repoPath} onRepoPathChange={setRepoPath} /></div>
 
-      <footer className="footer"><div className="footer-mark"><Logo />STXIC ATLAS</div><span>Local-first repository intelligence <i>·</i> Source stays local.</span><span className="footer-build">Built to make the evidence visible.</span></footer>
+      <footer className="footer"><div className="footer-mark"><Logo />STXIC ATLAS</div><span>Scanning stays local <i>·</i> Cloud AI is your choice.</span><span className="footer-build">Built to make the evidence visible.</span></footer>
     </main>
 
     {notice && <div className="toast" role="status"><Check size={15} />{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}

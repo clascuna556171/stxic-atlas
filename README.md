@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, enter its absolute folder path in **Scan project**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
+Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, use **Browse folders** (Windows) or enter its absolute folder path in **Scan project**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
 
 Use **Appearance** in the header to select System, Light, or Dark. System follows your operating system; the preference is saved only in this browser. Switching between Impact map and AI change review preserves review inputs, results, feedback, and an in-progress request for the current page session.
 
@@ -27,7 +27,7 @@ ollama pull qwen3.5:9b
 
 Open the **AI change review** tab, enter your repository root, choose a base ref (defaults to `HEAD`), and optionally describe the change's purpose. The review compares the working tree with that ref and includes supported untracked source files. It supplies `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, and `docs/architecture.md` when present, and shows which documents were included. Five focused passes use the same local model, followed by a skeptical chair pass. The findings, changed lines, model votes, weighted agreement, elapsed time, and Ollama token counts are shown together. Feedback adjusts agent weights gradually based on past ratings; feedback is stored in SQLite under `~/.change-atlas/feedback.sqlite` (Windows: `%LOCALAPPDATA%\.change-atlas\feedback.sqlite`).
 
-The diff and intent are sent only to the Ollama server on `127.0.0.1:11434`; no cloud model or API key is used. Local inference still uses your computer's memory and processing time. The model's review is an interpretation, not proof: inspect the cited diff and run the project's own checks. Review runs also record latency and token usage, but the app does not train models, evolve prompts automatically, post GitHub comments, or provide a GitHub webhook/CI integration.
+Local AI sends context only to Ollama on `127.0.0.1:11434`. Optional Ollama Cloud sends the displayed, bounded code and context to `https://ollama.com/api/chat` only after explicit confirmation. Local inference still uses your computer's memory and processing time. The model's review is an interpretation, not proof: inspect the cited diff and run the project's own checks. Review runs also record latency and token usage, but the app does not train models, evolve prompts automatically, post GitHub comments, or provide a GitHub webhook/CI integration.
 
 Each review sends at most 38,000 diff characters to every specialist and the chair. Oversized diffs, omitted untracked files, malformed specialist responses, or failed/incomplete chair responses produce **Partial review**, even when the completed passes return no findings. Token usage includes the chair. Feedback can only refer to saved findings; the server derives the participating reviewers from its own records.
 
@@ -35,7 +35,7 @@ Each review sends at most 38,000 diff characters to every specialist and the cha
 
 Open **AI change review**, paste your project folder, and select **Check changes**. This uses Git only and lists changed files and line counts. **Current edits** compares with the latest commit; **Latest saved commit + edits** compares with its parent and needs at least two commits. **Advanced comparison** accepts a simple branch or commit ID. If there are no changes, the screen explains what to try next. Quoted Windows folder paths are accepted; GitHub URLs, missing folders, and folders without Git produce specific guidance.
 
-Choose **Explain with AI** for five local reviews and a final summary. Adding the intended behavior in the optional note helps the model understand your change. The larger installed `qwen3.5:9b` model is preferred when available; other installed models remain selectable. Small models may misread code. The elapsed timer indicates waiting time, not percent complete. Reports can be saved as readable text or JSON. AI can be wrong even when all passes complete.
+Choose **Explain with AI** for one plain-language explanation: what changed, why it matters, and up to three suggested checks with valid changed-line citations. This is not a full review. Choose **Run deeper review** for five specialist passes and a final reviewer. Adding the intended behavior in the optional note helps the model understand your change. The larger installed `qwen3.5:9b` model is preferred when available; other installed models remain selectable. Small models may misread code. The elapsed timer indicates waiting time, not percent complete. Reports can be saved as readable text or JSON. AI can be wrong even when all passes complete.
 
 ## Checks
 
@@ -62,7 +62,7 @@ The smoke check creates a synthetic checkout and isolated feedback database unde
 - Structural links inferred from relative imports.
 - Historical links inferred when files change in the same commits.
 - A review view that lets you inspect the evidence behind a connection.
-- A local-only AI review workflow with five specialist passes, weighted findings, a skeptical consensus-chair pass, and SQLite-backed feedback.
+- A local-first AI review workflow with optional, explicitly confirmed Ollama Cloud with five specialist passes, weighted findings, a skeptical consensus-chair pass, and SQLite-backed feedback.
 - A Git-diff review that labels user-provided intent and commit-message context separately from model interpretations.
 - JSON export and a copyable review summary.
 - A React and TypeScript interface backed by a Node.js service.
@@ -89,3 +89,12 @@ The starter analyzer inspects at most 400 recent commits and 140 tracked source 
 This project takes cues from [Repo Visualizer](https://github.com/Jany-M/repo-visualizer), which makes repository evolution visible, and [git-history-ui](https://github.com/beingmartinbmc/git-history-ui), which brings local Git history into a browser. Stxic Atlas narrows the experience to a different job: inspect the evidence around one proposed change, combining current imports with co-change history in one reviewable map.
 
 All repository names, people, counts, and sample findings in the default experience are synthetic.
+
+
+## Optional cloud AI and easier setup
+
+Local is the default and never falls back to cloud. Select **Where AI runs → Ollama Cloud**, enter your own Ollama API key, and choose a model returned by the live cloud catalog. The key is sent to the local server and kept only in its memory, until **Disconnect and clear key** or server restart. It is not put in browser storage, reports, SQLite, or source control. Listing models confirms catalog reachability; account authorization is checked by the first inference request. Provider usage limits and charges apply; see [Ollama Cloud](https://docs.ollama.com/cloud) and its [privacy policy](https://ollama.com/privacy).
+
+Before every cloud explanation or deeper review, a native confirmation dialog displays the exact repository context: bounded diff, branch/comparison, optional intent, recent commit subjects, and bounded allowlisted documents. Stxic's fixed review instructions accompany that context; the final deeper-review request also includes generated findings. A SHA-256 digest binds confirmation to that context, model, and action. Changed context requires another preview. No automatic cloud retries or fallback occur, and redirects are rejected. Inspect for private code or secrets before confirming.
+
+**Browse folders** opens the Windows folder chooser and validates a Git root. Cancellation keeps the existing folder; a two-minute timeout offers a paste-path fallback. Other operating systems can paste a path. Up to five successfully checked/selected project paths are saved in this browser; **Forget recent** removes them. No project source is saved there. Explanations retain their own exact diff for inspection and can be downloaded as text. A failed new request keeps the prior report; choosing another repository or comparison clears it.

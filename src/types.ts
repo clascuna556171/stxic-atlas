@@ -9,6 +9,9 @@ export type AtlasData = {
 };
 
 export type ReviewStatus = { available: boolean; models: string[]; reason: string };
+export type AIProvider = 'local' | 'cloud';
+export type Explanation = { repository: string; baseRef: string; diff: string; model: string; provider: AIProvider; whatChanged: string; whyItMatters: string; checks: { text: string; file: string; line: number }[]; partial: boolean; elapsedMs: number };
+export type Disclosure = { digest: string; content: string; mode: 'explain' | 'review'; model: string };
 export type ChangePreview = {
   repository: string; baseRef: string; branch: string; diff: string; diffTruncated: boolean;
   files: { path: string; status: string; additions: number; deletions: number }[];
@@ -21,6 +24,7 @@ export type ReviewFinding = {
   agreement: number; chairVerdict: 'supported' | 'questioned' | 'dismissed' | 'not-run'; chairReason: string;
 };
 export type ReviewResult = {
+  provider?: AIProvider;
   synthetic: boolean;
   reviewId: string; repository: string; branch: string; baseRef: string; model: string; intent: string;
   reviewedAt: string; elapsedMs: number;

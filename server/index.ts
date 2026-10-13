@@ -3,7 +3,9 @@ import { analyzeRepository } from './analyze.js';
 import type { AtlasNode, AtlasEdge } from '../src/types.js';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { ollamaStatus, previewChanges, runReview, saveReviewFeedback } from './review.js';
+import { explainChanges, prepareDisclosure, ollamaStatus, previewChanges, runReview, saveReviewFeedback } from './review.js';
+import { cloudStatus, connectCloud, disconnectCloud } from './ai.js';
+import { pickProjectFolder } from './folderPicker.js';
 import { localRequestGuard } from './security.js';
 const app = express();
 app.disable('x-powered-by');
@@ -54,6 +56,27 @@ app.get('/api/review/status', async (_req, res) => {
 });
 
 let reviewRunning = false;
+app.get('/api/cloud/status', (_req, res) => res.json(cloudStatus()));
+app.post('/api/cloud/connect', async (req, res) => {
+  try { res.json(await connectCloud(req.body?.key)); }
+  catch { res.status(400).json({ error: 'Could not connect to Ollama Cloud. Check your API key, account access, and internet connection.' }); }
+});
+app.post('/api/cloud/disconnect', (_req, res) => { disconnectCloud(); res.json(cloudStatus()); });
+app.post('/api/project/pick', async (_req, res) => {
+  try { res.json(await pickProjectFolder()); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Could not choose a folder.' }); }
+});
+app.post('/api/review/disclosure', async (req, res) => {
+  try { res.json(await prepareDisclosure(req.body ?? {})); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Could not prepare the cloud preview.' }); }
+});
+app.post('/api/review/explain', async (req, res) => {
+  if (reviewRunning) { res.status(429).json({ error: 'AI is already running. Wait for it to finish.' }); return; }
+  reviewRunning = true;
+  try { res.json(await explainChanges(req.body ?? {})); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Could not explain the change.' }); }
+  finally { reviewRunning = false; }
+});
 app.post('/api/review/preview', async (req, res) => {
   try { res.json(await previewChanges({ repoPath: req.body?.repoPath, baseRef: req.body?.baseRef })); }
   catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Could not check changes.' }); }
@@ -62,7 +85,7 @@ app.post('/api/review', async (req, res) => {
   if (reviewRunning) { res.status(429).json({ error: 'A local review is already running. Wait for it to finish before starting another.' }); return; }
   reviewRunning = true;
   try {
-    const result = await runReview({ repoPath: req.body?.repoPath, baseRef: req.body?.baseRef, model: req.body?.model, intent: req.body?.intent });
+    const result = await runReview({ repoPath: req.body?.repoPath, baseRef: req.body?.baseRef, model: req.body?.model, intent: req.body?.intent, provider: req.body?.provider, disclosureDigest: req.body?.disclosureDigest });
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not review this change.';

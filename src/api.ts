@@ -1,4 +1,4 @@
-import type { AtlasData, ChangePreview, ReviewResult, ReviewStatus } from './types';
+import type { AtlasData, ChangePreview, Disclosure, Explanation, ReviewResult, ReviewStatus } from './types';
 
 export async function readResponse(response: Response): Promise<unknown> {
   const payload = await response.json().catch(() => { throw new Error('The local service returned an unreadable response.'); });
@@ -7,6 +7,15 @@ export async function readResponse(response: Response): Promise<unknown> {
 }
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
+export function explanation(value: unknown): Explanation {
+  if (!object(value) || !['repository', 'baseRef', 'diff', 'model', 'whatChanged', 'whyItMatters'].every((key) => typeof value[key] === 'string') || !['local', 'cloud'].includes(String(value.provider)) || typeof value.partial !== 'boolean' || !Number.isFinite(value.elapsedMs) || !Array.isArray(value.checks)
+    || !value.checks.every((item) => object(item) && typeof item.text === 'string' && typeof item.file === 'string' && Number.isInteger(item.line) && Number(item.line) > 0)) throw new Error('AI returned an incomplete explanation.');
+  return value as unknown as Explanation;
+}
+export function disclosure(value: unknown): Disclosure {
+  if (!object(value) || typeof value.digest !== 'string' || !/^[a-f0-9]{64}$/.test(value.digest) || typeof value.content !== 'string' || typeof value.model !== 'string' || !['explain', 'review'].includes(String(value.mode))) throw new Error('The cloud preview was incomplete. Nothing was sent.');
+  return value as unknown as Disclosure;
+}
 export function changePreview(value: unknown): ChangePreview {
   if (!object(value) || !['repository', 'branch', 'baseRef', 'diff'].every((key) => typeof value[key] === 'string')
     || typeof value.diffTruncated !== 'boolean' || !strings(value.commitMessages) || !strings(value.untrackedOmitted)
@@ -33,6 +42,7 @@ export function reviewStatus(value: unknown): ReviewStatus {
   return value as unknown as ReviewStatus;
 }
 export function reviewResult(value: unknown): ReviewResult {
+  if (object(value) && value.provider !== undefined && !['local', 'cloud'].includes(String(value.provider))) throw new Error('The review provider is invalid.');
   if (!object(value) || typeof value.synthetic !== 'boolean' || !['reviewId', 'repository', 'branch', 'baseRef', 'diff', 'changeSummary', 'purposeSummary'].every((key) => typeof value[key] === 'string')
     || !strings(value.contextFiles) || !strings(value.commitMessages) || !strings(value.untrackedOmitted) || !object(value.metrics) || !object(value.chair)
     || !['passed', 'totalAgents', 'totalTokens', 'usefulFeedback', 'incorrectFeedback'].every((key) => object(value.metrics) && typeof value.metrics[key] === 'number')
