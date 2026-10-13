@@ -10,6 +10,8 @@
 
 Privacy changes: scanning/change previews stay local. Explicitly confirmed cloud actions send the displayed bounded context to Ollama Cloud. Keys live only in local server memory until disconnect/restart; five recent successful folder paths can be stored in browser local storage and cleared through Forget recent. Quick explanations retain their diff in page memory and do not write source/prose to SQLite. Existing deeper-review metadata/feedback storage remains local. No automatic cloud fallback, source upload during scans, or hosted Git integration was added.
 
+Final follow-up: a browser check changed the project through File connections while a small local explanation was running. The new project kept no old preview, explanation, or ready notice after completion. Repository/comparison identity guards cover late preview, disclosure, result, and error responses. The production build and whitespace check passed after this fix.
+
 ## Final audit update
 
 ## Usability repair update

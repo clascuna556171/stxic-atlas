@@ -64,6 +64,8 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   const [intent, setIntent] = useState('');
   const [model, setModel] = useState('');
   const selectedModel = provider === 'local' ? model : cloudModel;
+  const inputIdentity = useRef('');
+  inputIdentity.current = JSON.stringify([repoPath, baseRef]);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -75,7 +77,7 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   useEffect(() => {
     void refreshModels();
   }, []);
-  useEffect(() => { setPreview(null); setBrief(null); setResult(null); }, [repoPath, baseRef]);
+  useEffect(() => { setPreview(null); setBrief(null); setResult(null); setNotice(''); setError(''); setFeedback({}); }, [repoPath, baseRef]);
   useEffect(() => { setPending(null); setConsent(false); }, [repoPath, baseRef, intent, provider, selectedModel]);
   useEffect(() => {
     const dialog = cloudDialog.current;
@@ -117,41 +119,48 @@ export default function ReviewPanel({ repoPath, onRepoPathChange }: Props) {
   const deletions = useMemo(() => result?.files.reduce((sum, file) => sum + file.deletions, 0) ?? 0, [result]);
 
   async function checkChanges() {
+    const expectedInput = inputIdentity.current;
     if (!repoPath.trim() || (comparison === 'custom' && !baseRef.trim())) { setError('Enter your project folder and, for Advanced comparison, a branch or commit name.'); return null; }
     setCheckingChanges(true); setError('');
     try {
       const payload = changePreview(await readResponse(await fetch('/api/review/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath, baseRef }) })));
+      if (expectedInput !== inputIdentity.current) return null;
       setPreview(payload);
       rememberProject(repoPath);
       return payload;
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not check your edits.');
+      if (expectedInput === inputIdentity.current) setError(caught instanceof Error ? caught.message : 'Could not check your edits.');
       return null;
     } finally { setCheckingChanges(false); }
   }
 
   async function run(mode: 'explain' | 'review', approved?: Disclosure) {
+    const expectedInput = inputIdentity.current;
     setError(''); setNotice(''); setBusy(true); setActiveMode(mode);
     try {
       const changes = await checkChanges();
-      if (!changes || !changes.files.length || !changes.diff.trim()) return;
+      if (expectedInput !== inputIdentity.current || !changes || !changes.files.length || !changes.diff.trim()) return;
       const input = { repoPath, baseRef, intent, model: selectedModel, provider };
       if (provider === 'cloud' && !approved) {
         const value = disclosure(await readResponse(await fetch('/api/review/disclosure', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, mode }) })));
+        if (expectedInput !== inputIdentity.current) return;
         setConsent(false); setPending(value); return;
       }
       setPending(null);
       const response = await fetch(mode === 'explain' ? '/api/review/explain' : '/api/review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, disclosureDigest: approved?.digest }) });
       if (mode === 'explain') {
-        setBrief(explanation(await readResponse(response)));
+        const payload = explanation(await readResponse(response));
+        if (expectedInput !== inputIdentity.current) return;
+        setBrief(payload);
         setNotice('Explanation ready. A deeper review is available below.');
       } else {
         const payload = reviewResult(await readResponse(response));
+        if (expectedInput !== inputIdentity.current) return;
         setResult(payload); setFeedback({});
         setNotice(`Review complete · ${payload.metrics.passed}/${payload.metrics.totalAgents} specialist passes`);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not explain these changes.');
+      if (expectedInput === inputIdentity.current) setError(caught instanceof Error ? caught.message : 'Could not explain these changes.');
     } finally { setBusy(false); }
   }
 
