@@ -5,7 +5,7 @@ import { lstat, readFile, realpath } from 'node:fs/promises';
 
 const exec = promisify(execFile);
 export function runGit(repoPath: string, args: string[], maxBuffer = 8 * 1024 * 1024) {
-  return exec('git', ['-c', 'core.quotePath=false', ...args], { cwd: repoPath, maxBuffer, timeout: 20000, windowsHide: true });
+  return exec('git', ['-c', 'core.quotePath=false', '-c', 'core.fsmonitor=false', ...args], { cwd: repoPath, maxBuffer, timeout: 20000, windowsHide: true });
 }
 
 export async function repositoryRoot(value: unknown) {

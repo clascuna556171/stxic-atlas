@@ -1,5 +1,9 @@
 # Stxic Atlas verification — October 13, 2026
 
+## Final audit update
+
+The latest pass added System/Light/Dark appearance, retained review state across workspace changes, improved mobile actions and text/focus accessibility, and hardened local requests and response validation. See [final audit](AUDIT.md) for findings, checks, privacy boundaries, and limitations. Latest automated run: **14 tests passed**, production build passed, dependency audit reported zero vulnerabilities, and a fresh actual-model synthetic smoke completed all five specialists and the chair (3,563 tokens, 13.4 seconds). Earlier results below describe the initial MVP verification.
+
 ## Delivered behavior
 
 - Corrected the impact analyzer's Git commit parsing and aligned relationship counts to the complete bounded 400-commit window.

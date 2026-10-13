@@ -44,6 +44,11 @@ The frontend and backend use the review types in `src/types.ts`. Frontend respon
 
 ## Trust and data boundaries
 
+- `server/security.ts` rejects non-loopback Host/Origin headers, cross-site browser requests, and non-JSON API POSTs before parsing their payloads. Local API responses are not cached and include anti-framing and MIME-sniffing protection. Only one review request can run at a time to bound local-model resource use.
+- Git invocations disable configured filesystem monitor helpers in the inspected repository. This avoids running a repository-configured helper during scans.
+- Development binds explicitly to IPv4 loopback at port 5175 and fails if that port is occupied, avoiding silent port changes.
+- `src/theme.ts` resolves a browser-local appearance preference and system color scheme. No theme preference or additional repository data is transmitted.
+
 - Repository paths, source, diffs, and feedback are handled locally by the app. Review prompts go only to the local Ollama endpoint.
 - Project documents and code diffs are untrusted input to the model, not instructions; the review prompt explicitly says so.
 - Source files and Git output are bounded. Symlinks and oversized files are skipped in review context collection.

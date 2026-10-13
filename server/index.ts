@@ -4,7 +4,10 @@ import type { AtlasNode, AtlasEdge } from '../src/types.js';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { ollamaStatus, runReview, saveReviewFeedback } from './review.js';
+import { localRequestGuard } from './security.js';
 const app = express();
+app.disable('x-powered-by');
+app.use(localRequestGuard);
 app.use(express.json({ limit: '32kb' }));
 const demo = {
   repository: 'northstar/marketplace-api',
@@ -50,14 +53,17 @@ app.get('/api/review/status', async (_req, res) => {
   res.json(await ollamaStatus());
 });
 
+let reviewRunning = false;
 app.post('/api/review', async (req, res) => {
+  if (reviewRunning) { res.status(429).json({ error: 'A local review is already running. Wait for it to finish before starting another.' }); return; }
+  reviewRunning = true;
   try {
     const result = await runReview({ repoPath: req.body?.repoPath, baseRef: req.body?.baseRef, model: req.body?.model, intent: req.body?.intent });
     res.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not review this change.';
     res.status(400).json({ error: message.includes('ENOENT') ? 'Folder or Git was not found. Check the repository path.' : message });
-  }
+  } finally { reviewRunning = false; }
 });
 
 app.post('/api/review/feedback', (req, res) => {

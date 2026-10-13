@@ -59,6 +59,8 @@ test('malformed API payloads fail before rendering, and the labeled demo is vali
   assert.throws(() => reviewStatus({ available: true, models: null }), /Invalid/);
   assert.throws(() => reviewResult({ findings: [] }), /incomplete/);
   assert.equal(reviewResult(reviewDemo).synthetic, true);
+  assert.throws(() => reviewResult({ ...reviewDemo, chair: { status: 'unknown', elapsedMs: 0 } }), /incomplete/);
+  assert.throws(() => reviewResult({ ...reviewDemo, findings: [{ ...reviewDemo.findings[0], line: -1 }] }), /incomplete/);
 });
 
 function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-findings' | 'chair-malformed' | 'chair-incomplete') {

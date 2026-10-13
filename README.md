@@ -11,7 +11,11 @@ npm install
 npm run dev
 ```
 
-Open the local Vite address printed in the terminal. The sample repository is synthetic and is available immediately. To analyze your own checkout, enter its absolute folder path in **Scan repo**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
+Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, enter its absolute folder path in **Scan repo**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
+
+Use **Appearance** in the header to select System, Light, or Dark. System follows your operating system; the preference is saved only in this browser. Switching between Impact map and Review swarm preserves review inputs, results, feedback, and an in-progress request for the current page session.
+
+The local API rejects non-loopback hostnames, remote origins, cross-site requests, and form POSTs. It accepts JSON requests from the local workspace, permits only one running review, and disables repository-configured Git filesystem-monitor helpers. These boundaries protect a local developer tool; the app is not designed to be exposed as a public repository-analysis service.
 
 For a walkthrough without a model, open **Review swarm → Explore example review**. This loads an explicitly synthetic discount/tax change with a finding, cited diff, specialist votes, and chair explanation. Example feedback is temporary and never changes the saved reviewer weights. Exports retain the `synthetic` flag.
 
@@ -66,6 +70,7 @@ The smoke check creates a synthetic checkout and isolated feedback database unde
 - [Architecture](ARCHITECTURE.md)
 - [Contributor and coding-agent rules](AGENTS.md)
 - [Verification results](VERIFICATION.md)
+- [Final security and interface audit](AUDIT.md)
 
 ## How to read the signals
 
