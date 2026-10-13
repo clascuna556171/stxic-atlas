@@ -11,27 +11,33 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, enter its absolute folder path in **Scan repo**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
+Open http://127.0.0.1:5175/ (also reachable as http://localhost:5175/). Development uses a fixed loopback port and reports an error if it is occupied. The sample repository is synthetic and is available immediately. To analyze your own checkout, enter its absolute folder path in **Scan project**. The app reads tracked files and recent Git metadata on your machine; repository source is not sent to a service.
 
-Use **Appearance** in the header to select System, Light, or Dark. System follows your operating system; the preference is saved only in this browser. Switching between Impact map and Review swarm preserves review inputs, results, feedback, and an in-progress request for the current page session.
+Use **Appearance** in the header to select System, Light, or Dark. System follows your operating system; the preference is saved only in this browser. Switching between Impact map and AI change review preserves review inputs, results, feedback, and an in-progress request for the current page session.
 
 The local API rejects non-loopback hostnames, remote origins, cross-site requests, and form POSTs. It accepts JSON requests from the local workspace, permits only one running review, and disables repository-configured Git filesystem-monitor helpers. These boundaries protect a local developer tool; the app is not designed to be exposed as a public repository-analysis service.
 
-For a walkthrough without a model, open **Review swarm → Explore example review**. This loads an explicitly synthetic discount/tax change with a finding, cited diff, specialist votes, and chair explanation. Example feedback is temporary and never changes the saved reviewer weights. Exports retain the `synthetic` flag.
+For a walkthrough without a model, open **AI change review → Explore example review**. This loads an explicitly synthetic discount/tax change with a finding, cited diff, specialist votes, and chair explanation. Example feedback is temporary and never changes the saved reviewer weights. Exports retain the `synthetic` flag.
 
-To use **Review swarm**, install and start Ollama, then download a local model. For example:
+To use **AI change review**, install and start Ollama, then download a local model. For example:
 
 ```sh
 ollama pull qwen3.5:9b
 ```
 
-Open the **Review swarm** tab, enter your repository root, choose a base ref (defaults to `HEAD`), and optionally describe the change's purpose. The review compares the working tree with that ref and includes supported untracked source files. It supplies `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, and `docs/architecture.md` when present, and shows which documents were included. Five focused passes use the same local model, followed by a skeptical chair pass. The findings, changed lines, model votes, weighted agreement, elapsed time, and Ollama token counts are shown together. Feedback adjusts agent weights gradually based on past ratings; feedback is stored in SQLite under `~/.change-atlas/feedback.sqlite` (Windows: `%LOCALAPPDATA%\.change-atlas\feedback.sqlite`).
+Open the **AI change review** tab, enter your repository root, choose a base ref (defaults to `HEAD`), and optionally describe the change's purpose. The review compares the working tree with that ref and includes supported untracked source files. It supplies `README.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, and `docs/architecture.md` when present, and shows which documents were included. Five focused passes use the same local model, followed by a skeptical chair pass. The findings, changed lines, model votes, weighted agreement, elapsed time, and Ollama token counts are shown together. Feedback adjusts agent weights gradually based on past ratings; feedback is stored in SQLite under `~/.change-atlas/feedback.sqlite` (Windows: `%LOCALAPPDATA%\.change-atlas\feedback.sqlite`).
 
 The diff and intent are sent only to the Ollama server on `127.0.0.1:11434`; no cloud model or API key is used. Local inference still uses your computer's memory and processing time. The model's review is an interpretation, not proof: inspect the cited diff and run the project's own checks. Review runs also record latency and token usage, but the app does not train models, evolve prompts automatically, post GitHub comments, or provide a GitHub webhook/CI integration.
 
 Each review sends at most 38,000 diff characters to every specialist and the chair. Oversized diffs, omitted untracked files, malformed specialist responses, or failed/incomplete chair responses produce **Partial review**, even when the completed passes return no findings. Token usage includes the chair. Feedback can only refer to saved findings; the server derives the participating reviewers from its own records.
 
-## Verification
+## Checking edits without AI
+
+Open **AI change review**, paste your project folder, and select **Check changes**. This uses Git only and lists changed files and line counts. **Current edits** compares with the latest commit; **Latest saved commit + edits** compares with its parent and needs at least two commits. **Advanced comparison** accepts a simple branch or commit ID. If there are no changes, the screen explains what to try next. Quoted Windows folder paths are accepted; GitHub URLs, missing folders, and folders without Git produce specific guidance.
+
+Choose **Explain with AI** for five local reviews and a final summary. Adding the intended behavior in the optional note helps the model understand your change. The larger installed `qwen3.5:9b` model is preferred when available; other installed models remain selectable. Small models may misread code. The elapsed timer indicates waiting time, not percent complete. Reports can be saved as readable text or JSON. AI can be wrong even when all passes complete.
+
+## Checks
 
 ```sh
 npm test

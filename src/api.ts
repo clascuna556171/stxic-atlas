@@ -1,4 +1,4 @@
-import type { AtlasData, ReviewResult, ReviewStatus } from './types';
+import type { AtlasData, ChangePreview, ReviewResult, ReviewStatus } from './types';
 
 export async function readResponse(response: Response): Promise<unknown> {
   const payload = await response.json().catch(() => { throw new Error('The local service returned an unreadable response.'); });
@@ -7,6 +7,13 @@ export async function readResponse(response: Response): Promise<unknown> {
 }
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 const strings = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string');
+export function changePreview(value: unknown): ChangePreview {
+  if (!object(value) || !['repository', 'branch', 'baseRef', 'diff'].every((key) => typeof value[key] === 'string')
+    || typeof value.diffTruncated !== 'boolean' || !strings(value.commitMessages) || !strings(value.untrackedOmitted)
+    || !Array.isArray(value.files) || !value.files.every((file) => object(file) && typeof file.path === 'string' && typeof file.status === 'string' && Number.isFinite(file.additions) && Number.isFinite(file.deletions)))
+    throw new Error('The local service returned incomplete change details.');
+  return value as unknown as ChangePreview;
+}
 export function atlasData(value: unknown): AtlasData {
   if (!object(value) || !object(value.summary) || typeof value.repository !== 'string' || typeof value.branch !== 'string' || typeof value.scannedAt !== 'string' || typeof value.synthetic !== 'boolean' || !Array.isArray(value.nodes) || !value.nodes.length || !Array.isArray(value.edges) || !Array.isArray(value.findings) || !Array.isArray(value.suggestedChecks)
     || !['commits', 'files', 'contributors', 'hotspots'].every((key) => object(value.summary) && typeof value.summary[key] === 'number')
@@ -36,6 +43,7 @@ export function reviewResult(value: unknown): ReviewResult {
     throw new Error('The local service returned an incomplete review report.');
   const agents = ['security', 'architecture', 'quality', 'tests', 'performance'];
   if (typeof value.diffTruncated !== 'boolean' || !['user', 'git', 'unprovided'].includes(String(value.purposeSource))
+    || !['model', 'git', 'synthetic'].includes(String(value.changeSummarySource))
     || !['complete', 'failed', 'skipped'].includes(String(value.chair.status)) || !Number.isFinite(value.chair.elapsedMs)
     || !value.agents.every((agent) => agents.includes(agent.id) && ['complete', 'failed'].includes(agent.status))
     || !value.findings.every((finding) => ['critical', 'high', 'medium', 'low'].includes(finding.severity)

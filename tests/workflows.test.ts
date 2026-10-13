@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { analyzeRepository } from '../server/analyze.ts';
 import { readRepositoryFile, repositoryRoot, runGit } from '../server/repository.ts';
-import { atlasData, reviewResult, reviewStatus } from '../src/api.ts';
+import { atlasData, changePreview, reviewResult, reviewStatus } from '../src/api.ts';
 import { reviewDemo } from '../src/reviewDemo.ts';
 
 const temporary = await mkdtemp(join(tmpdir(), 'stxic-atlas-test-'));
 process.env.LOCALAPPDATA = temporary;
-const { runReview, saveReviewFeedback, closeReviewStore } = await import('../server/review.ts');
+const { previewChanges, runReview, saveReviewFeedback, closeReviewStore } = await import('../server/review.ts');
 after(async () => {
   // Only remove this test's freshly generated temporary folder.
   assert.ok(resolve(temporary).startsWith(resolve(tmpdir()) + sep));
@@ -53,6 +53,36 @@ test('repository roots, traversal, file size and symlinked directories are bound
   await symlink(outside, join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
   await assert.rejects(readRepositoryFile(root, 'linked/secret.ts', 1000), /Symlinks/);
   await unlink(join(root, 'linked'));
+  assert.equal(await repositoryRoot(`"${root}"`), root);
+  await assert.rejects(repositoryRoot('https://github.com/example/project'), /folder on your computer/);
+  await assert.rejects(repositoryRoot(join(temporary, 'missing')), /folder could not be found/);
+  await assert.rejects(repositoryRoot(temporary), /not a Git project/);
+});
+
+test('change preview explains current edits and latest commit without contacting AI', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('Preview must not call a model.'); };
+  try {
+    const edits = changePreview(await previewChanges({ repoPath: `"${root}"`, baseRef: 'HEAD' }));
+    assert.deepEqual(edits.files.map((file) => file.path), ['a.ts']);
+    assert.match(edits.diff, /b \+ 2/);
+    const latest = await previewChanges({ repoPath: root, baseRef: 'HEAD^' });
+    assert.equal(latest.files.length, 2);
+    await assert.rejects(previewChanges({ repoPath: root, baseRef: 'nonexistent-version' }), /saved version was not found/);
+    assert.throws(() => changePreview({ files: null }), /incomplete/);
+  } finally { globalThis.fetch = original; }
+});
+
+test('new Git projects with staged code can scan before their first commit', async () => {
+  const fresh = join(temporary, 'new-project');
+  await mkdir(fresh);
+  await runGit(fresh, ['init']);
+  await writeFile(join(fresh, 'hello.ts'), 'export const hello = 1;\n');
+  await runGit(fresh, ['add', '--', 'hello.ts']);
+  const map = await analyzeRepository(fresh);
+  assert.equal(map.summary.commits, 0);
+  assert.equal(map.nodes[0].id, 'hello.ts');
+  await assert.rejects(previewChanges({ repoPath: fresh, baseRef: 'HEAD^' }), /at least two saved commits/);
 });
 test('malformed API payloads fail before rendering, and the labeled demo is valid', () => {
   assert.throws(() => atlasData({ nodes: [] }), /incomplete/);
@@ -63,21 +93,22 @@ test('malformed API payloads fail before rendering, and the labeled demo is vali
   assert.throws(() => reviewResult({ ...reviewDemo, findings: [{ ...reviewDemo.findings[0], line: -1 }] }), /incomplete/);
 });
 
-function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-findings' | 'chair-malformed' | 'chair-incomplete') {
+function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-findings' | 'chair-malformed' | 'chair-incomplete' | 'uncited') {
   const original = globalThis.fetch;
   globalThis.fetch = async (_url, options) => {
     if (String(_url).endsWith('/api/tags')) return Response.json({ models: [{ name: 'fixture-model' }] });
     const body = JSON.parse(String(options?.body));
+    assert.equal(body.think, false, 'Request a final answer without spending the response budget on hidden reasoning.');
     const chair = body.messages[0].content.includes('skeptical chair');
     if (chair && mode === 'chair-fails') return new Response('', { status: 500 });
-    const finding = { severity: 'high', category: 'correctness', file: 'a.ts', line: 2, title: 'Synthetic fixture finding', comment: 'Fixture explanation', confidence: 0.6 };
+    const finding = { severity: 'high', category: 'correctness', file: 'a.ts', line: mode === 'uncited' ? 999 : 2, title: 'Synthetic fixture finding', comment: 'Fixture explanation', confidence: 0.6 };
     const payload = chair ? mode === 'chair-malformed' ? {} : { changeSummary: 'Synthetic fixture summary', purposeSummary: 'Not provided.', votes: mode === 'chair-incomplete' ? [] : [{ id: 'finding-1', verdict: 'supported', reason: 'Fixture evidence' }] }
       : mode === 'specialist-malformed' ? {} : { findings: mode === 'no-findings' ? [] : [finding, { ...finding, file: 'not-changed.ts' }] };
     return Response.json({ message: { content: JSON.stringify(payload) }, prompt_eval_count: 10, eval_count: 5 });
   };
   return () => { globalThis.fetch = original; };
 }
-for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings', 'chair-malformed', 'chair-incomplete'] as const) {
+for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings', 'chair-malformed', 'chair-incomplete', 'uncited'] as const) {
   test(`local review workflow: ${mode}`, async () => {
     const restore = mockModel(mode);
     try {
@@ -86,6 +117,11 @@ for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings
       assert.equal(report.purposeSource, 'unprovided');
       assert.equal(report.purposeSummary, 'Not provided.');
       reviewResult(report);
+      if (mode === 'chair-incomplete') {
+        assert.equal(report.changeSummary, 'Synthetic fixture summary');
+        assert.equal(report.changeSummarySource, 'model');
+        assert.equal(report.chair.status, 'failed');
+      }
       if (mode === 'valid') {
         assert.equal(report.findings.length, 1);
         assert.equal(report.findings[0].confidence, 0.6);
@@ -99,7 +135,8 @@ for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings
         const changed = saveReviewFeedback({ ...vote, vote: 'incorrect' });
         assert.equal(changed.useful, 0);
         assert.equal(changed.incorrect, 5);
-      } else if (mode === 'no-findings') assert.equal(report.decision, 'looks-clear');
+      } else if (mode === 'uncited') { assert.equal(report.findings[0].line, null); assert.equal(report.decision, 'review-findings'); }
+      else if (mode === 'no-findings') assert.equal(report.decision, 'looks-clear');
       else assert.equal(report.decision, 'partial-review');
     } finally { restore(); }
   });

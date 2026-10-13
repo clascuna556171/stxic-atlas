@@ -31,7 +31,9 @@ Switching workspaces retains review inputs, findings, votes, and any running rev
 
 ## 3. Review a local change with the swarm
 
-1. The user opens **Review swarm**, selects a local repository, and chooses a comparison ref (default `HEAD`).
+The screen is labeled **AI change review**. Choose Current edits, Latest saved commit + edits, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** checks the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
+
+1. The user opens **AI change review**, selects a local repository, and chooses a comparison ref (default `HEAD`).
 2. They select an installed local Ollama chat model and may enter why the change was made.
 3. Stxic Atlas collects the Git diff, supported untracked source files, branch and commit context, and available project documents.
 4. Five specialist passes review the same bounded diff concurrently. Each returns structured findings tied to changed files and lines.

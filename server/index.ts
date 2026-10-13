@@ -3,7 +3,7 @@ import { analyzeRepository } from './analyze.js';
 import type { AtlasNode, AtlasEdge } from '../src/types.js';
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-import { ollamaStatus, runReview, saveReviewFeedback } from './review.js';
+import { ollamaStatus, previewChanges, runReview, saveReviewFeedback } from './review.js';
 import { localRequestGuard } from './security.js';
 const app = express();
 app.disable('x-powered-by');
@@ -54,6 +54,10 @@ app.get('/api/review/status', async (_req, res) => {
 });
 
 let reviewRunning = false;
+app.post('/api/review/preview', async (req, res) => {
+  try { res.json(await previewChanges({ repoPath: req.body?.repoPath, baseRef: req.body?.baseRef })); }
+  catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : 'Could not check changes.' }); }
+});
 app.post('/api/review', async (req, res) => {
   if (reviewRunning) { res.status(429).json({ error: 'A local review is already running. Wait for it to finish before starting another.' }); return; }
   reviewRunning = true;

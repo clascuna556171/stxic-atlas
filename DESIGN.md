@@ -2,6 +2,10 @@
 
 ## Visual direction
 
+The Stxic mark replaces the four-tile placeholder: a vermilion diamond contains an angular S-shaped trace, three commit nodes, and a short branch. The Git-inspired geometry relates directly to saved changes; the S identifies Stxic. It is an original SVG mark, reused in the header/footer and favicon, and stays legible in both themes without raster generation or gradients.
+
+The primary labels are File connections and AI change review. Folder guidance, ordinary-language reviewer descriptions, comparison choices, and a factual preview lead into optional AI interpretation. Setup controls remain visible rather than hiding required actions behind technical vocabulary. Readable text export supports sharing with someone who does not use JSON.
+
 The interface treats repository relationships as a gridded engineering field. Its visible construction grid belongs to the impact map, where edges and file nodes are measured; it does not extend behind unrelated page content. The map should feel inspectable and precise, while the surrounding review controls stay familiar.
 
 ## Palette

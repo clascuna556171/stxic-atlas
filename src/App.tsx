@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, CircleHelp, Command, Download, FileCode2, GitBranch, LoaderCircle, Map, Search, ShieldCheck, SunMoon, TriangleAlert, X } from 'lucide-react';
 import type { AtlasData, AtlasNode } from './types';
 import ReviewPanel from './ReviewPanel';
+import Logo from './Logo';
+import { downloadText } from './download';
 import { atlasData, readResponse } from './api';
 import { applyAppearance, readAppearance, type Appearance } from './theme';
 
@@ -61,8 +63,8 @@ function App() {
   const selected = data?.nodes.find((node) => node.id === selectedId) ?? data?.nodes[0];
   const connected = useMemo(() => {
     if (!data || !selected) return [];
-    return data.edges.filter((edge) => edge.from === selected.id || edge.to === selected.id);
-  }, [data, selected]);
+    return data.edges.filter((edge) => (edge.from === selected.id || edge.to === selected.id) && (signalView === 'all' || (signalView === 'history' ? edge.kind === 'cochange' : edge.kind !== 'cochange')));
+  }, [data, selected, signalView]);
   const visibleNodes = useMemo(() => {
     if (!data) return [];
     return data.nodes.filter((node) => node.label.toLowerCase().includes(search.toLowerCase()) || node.group.toLowerCase().includes(search.toLowerCase()));
@@ -70,16 +72,18 @@ function App() {
 
   async function analyze(event?: FormEvent) {
     event?.preventDefault();
-    if (!repoPath.trim()) {
-      setError('Enter the folder path to your local Git repository.');
+    const folderPath = repoPath.trim().replace(/^"(.*)"$/, '$1');
+    if (!folderPath) {
+      setError('Paste the address of your project folder from File Explorer.');
       document.getElementById('repo-path')?.focus();
       return;
     }
     setError(''); setBusy(true);
     try {
-      const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath }) });
+      const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath: folderPath }) });
       const result = atlasData(await readResponse(response));
       setData(result);
+      setRepoPath(folderPath);
       setSelectedId(result.nodes[0]?.id ?? '');
       setNotice(`Analysis ready · ${result.summary.files} source files indexed`);
       setSearch('');
@@ -110,8 +114,7 @@ function App() {
       signals: related.map((edge) => ({ file: edge.from === selected.id ? edge.to : edge.from, relationship: edge.kind, evidence: edge.evidence })),
       findings: data.findings.filter((finding) => related.some((edge) => edge.from === finding.node || edge.to === finding.node)),
     };
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `change-impact-${selected.label.replace(/[^a-z0-9.-]/gi, '-')}.json`; link.click(); URL.revokeObjectURL(link.href);
+    downloadText(JSON.stringify(report, null, 2), `change-impact-${selected.label}.json`, 'application/json');
     setNotice('Evidence report downloaded');
   }
 
@@ -133,14 +136,14 @@ function App() {
     return true;
   });
   const findings = data.findings.filter((finding) => !selected || finding.node === selected.id || connected.some((edge) => edge.from === finding.node || edge.to === finding.node));
-  const selectedIncident = connected.length;
+  const selectedIncident = new Set(connected.map((edge) => edge.from === target.id ? edge.to : edge.from)).size;
   const reviewRepoName = repoPath.trim().replace(/[\\/]+$/, '').split(/[\\/]/).at(-1);
 
   return <div className="app-shell">
     <a className="skip-link" href="#top">Skip to workspace</a>
     <header className="topbar">
-      <a className="brand" href="#top" aria-label="Stxic Atlas home">
-        <span className="brand-glyph" aria-hidden="true"><span /><span /><span /><span /></span>
+      <a className="brand" href="#top" aria-label="Stxic Atlas home" onClick={() => setActiveWorkspace('impact')}>
+        <Logo />
         <span className="brand-name">stxic<span>atlas</span></span>
       </a>
       <div className="top-divider" />
@@ -154,46 +157,48 @@ function App() {
     <main id="top" className="main-wrap" tabIndex={-1}>
       <section className="page-intro">
         <div className="intro-title-group">
-          <div className="title-line"><h1>{activeWorkspace === 'impact' ? 'Change impact' : 'Review swarm'}</h1><span className="version-mark">FIELD NOTE&nbsp; {activeWorkspace === 'impact' ? '01' : '02'}</span></div>
-          <p>{activeWorkspace === 'impact' ? 'Trace a change through code and history. Every connection has a reason.' : 'Five local specialist passes. One inspectable, evidence-backed review.'}</p>
+          <div className="title-line"><h1>{activeWorkspace === 'impact' ? 'Understand your project' : 'Explain your changes'}</h1></div>
+          <p>{activeWorkspace === 'impact' ? 'See which files depend on each other, so you know what else to check.' : 'See what you edited, then ask local AI to explain possible problems.'}</p>
         </div>
         {activeWorkspace === 'impact' && <form className="repo-form" onSubmit={analyze}>
           <label htmlFor="repo-path" className="sr-only">Local Git repository folder path</label>
-          <div className="repo-input-wrap"><Command size={15} /><input id="repo-path" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="Paste a local repository path" autoComplete="off" /><button type="submit" className="scan-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <><span>Scan repo</span><ArrowRight size={15} /></>}</button></div>
+          <div className="repo-input-wrap"><Command size={15} /><input id="repo-path" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="Paste a local repository path" autoComplete="off" /><button type="submit" className="scan-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <><span>Scan project</span><ArrowRight size={15} /></>}</button></div>
+          <p className="folder-hint">Open your project in File Explorer and copy the folder address. It must have Git history.</p>
           {error && <div className="form-error" role="alert">{error}</div>}
         </form>}
       </section>
 
       {activeWorkspace === 'impact' && <><div className="repo-meta-row">
-        <div className="repo-meta"><span className="repo-stamp">{data.synthetic ? 'DEMO REPOSITORY' : 'LOCAL REPOSITORY'}</span><span className="meta-slash">/</span><span className="branch-label"><GitBranch size={13} />{data.branch}</span><span className="meta-slash">/</span><span className="scanned-at">Scanned {data.scannedAt}</span></div>
+        <div className="repo-meta"><span className="repo-stamp">{data.synthetic ? 'DEMO REPOSITORY' : 'LOCAL REPOSITORY'}</span><span className="meta-slash">/</span><span className="branch-label"><GitBranch size={13} />{data.branch}</span><span className="meta-slash">/</span><span className="scanned-at">Scanned {Number.isNaN(Date.parse(data.scannedAt)) ? data.scannedAt : new Date(data.scannedAt).toLocaleString()}</span></div>
         <div className="meta-actions">{!data.synthetic && <button className="text-action" onClick={useDemo} disabled={busy}>Use sample</button>}<button className="text-action" onClick={copySummary}><span>{copied ? <Check size={14} /> : <FileCode2 size={14} />}</span>{copied ? 'Copied' : 'Copy summary'}</button><button className="text-action" onClick={downloadReport}><Download size={14} />Export evidence</button></div>
       </div>
       {data.synthetic && <div className="demo-banner"><span className="demo-asterisk">✳</span><span><strong>Using a synthetic sample.</strong> Findings below are illustrative, not from a real company or codebase.</span><button onClick={useDemo}>Reset sample</button></div>}</>}
 
       <nav className="workspace-tabs" aria-label="Stxic Atlas workspace">
-        <button className={activeWorkspace === 'impact' ? 'active' : ''} aria-current={activeWorkspace === 'impact' ? 'page' : undefined} onClick={() => setActiveWorkspace('impact')}><Map size={14} />Impact map</button>
-        <button className={activeWorkspace === 'review' ? 'active' : ''} aria-current={activeWorkspace === 'review' ? 'page' : undefined} onClick={() => setActiveWorkspace('review')}><ShieldCheck size={14} />Review swarm<span className="new-mark">LOCAL AI</span></button>
+        <button className={activeWorkspace === 'impact' ? 'active' : ''} aria-current={activeWorkspace === 'impact' ? 'page' : undefined} onClick={() => setActiveWorkspace('impact')}><Map size={14} />File connections</button>
+        <button className={activeWorkspace === 'review' ? 'active' : ''} aria-current={activeWorkspace === 'review' ? 'page' : undefined} onClick={() => setActiveWorkspace('review')}><ShieldCheck size={14} />AI change review</button>
       </nav>
 
       {activeWorkspace === 'impact' ? <>
+      <div className="getting-started"><div><strong>{data.synthetic ? 'Start with the example' : 'Your project is ready'}</strong><p>{data.synthetic ? 'Click a file below to see its connections. The example is fictional and needs no setup.' : 'Choose a file below, or review your recent edits with AI.'}</p></div><button className="copy-button" onClick={() => setActiveWorkspace('review')}>{data.synthetic ? 'Open change review' : 'Review my changes'}<ArrowRight size={16} /></button></div>
 
       <section className="stats-strip" aria-label="Repository overview">
-        <div className="stat-cell"><span className="stat-label">COMMITS IN WINDOW</span><strong>{data.summary.commits.toLocaleString()}</strong><span className="stat-note">recent history examined</span></div>
+        <div className="stat-cell"><span className="stat-label">SAVED CHANGES</span><strong>{data.summary.commits.toLocaleString()}</strong><span className="stat-note">recent history examined</span></div>
         <div className="stat-cell"><span className="stat-label">SOURCE FILES</span><strong>{data.summary.files}</strong><span className="stat-note">tracked in this view</span></div>
         <div className="stat-cell"><span className="stat-label">CONTRIBUTORS</span><strong>{data.summary.contributors}</strong><span className="stat-note">in analyzed history</span></div>
-        <div className="stat-cell stat-risk"><span className="stat-label">IMPACT SCOPE</span><strong>{selectedIncident + 1} files</strong><span className="stat-note">{selectedIncident} connected evidence links</span></div>
+        <div className="stat-cell stat-risk"><span className="stat-label">FILES TO CHECK</span><strong>{selectedIncident + 1} files</strong><span className="stat-note">{selectedIncident} connected evidence links</span></div>
       </section>
 
       <section className="atlas-section" aria-labelledby="atlas-heading">
         <div className="section-head">
-          <div><h2 id="atlas-heading">Impact map</h2><p>One target. Nearby modules. The evidence between them.</p></div>
+          <div><h2 id="atlas-heading">File connections</h2><p>Choose a file. Solid lines show which files it uses; dashed lines show shared change history.</p></div>
           <div className="map-controls"><div className="view-tabs" role="group" aria-label="Signals to show">
-            {(['all', 'dependencies', 'history'] as const).map((view) => <button key={view} aria-pressed={signalView === view} className={signalView === view ? 'active' : ''} onClick={() => setSignalView(view)}>{view === 'all' ? 'All signals' : view === 'dependencies' ? 'Structure & imports' : 'Co-change'}</button>)}
+            {(['all', 'dependencies', 'history'] as const).map((view) => <button key={view} aria-pressed={signalView === view} className={signalView === view ? 'active' : ''} onClick={() => setSignalView(view)}>{view === 'all' ? 'All signals' : view === 'dependencies' ? 'Uses other files' : 'Changed together'}</button>)}
           </div><label className="search-box"><Search size={14} /><input value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Filter files" placeholder="Find a file" /><kbd>/</kbd></label></div>
         </div>
 
         <div className="atlas-board">
-          <div className="board-axis axis-top"><span>INTERDEPENDENCE FIELD</span><span>SELECT A NODE TO INSPECT EVIDENCE</span></div>
+          <div className="board-axis axis-top"><span>FILE RELATIONSHIPS</span><span>SELECT A NODE TO INSPECT EVIDENCE</span></div>
           <div className="graph-viewport">
             <svg className="graph-svg" viewBox="0 0 900 540" role="group" aria-label="Interactive code impact map. Select a file to inspect its connections.">
               <defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path className="graph-grid" d="M 24 0 L 0 0 0 24" fill="none" strokeWidth=".55" opacity=".55" /></pattern><marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path className="graph-arrow" d="M0 0 L8 4 L0 8 z" /></marker></defs>
@@ -240,13 +245,13 @@ function App() {
           <div className="evidence-list">
             {connected.length ? connected.map((edge) => {
               const otherId = edge.from === target.id ? edge.to : edge.from; const other = data.nodes.find((node) => node.id === otherId);
-              return <button className="evidence-row" key={`${edge.from}-${edge.to}`} onClick={() => setSelectedId(otherId)}>
+              return <button className="evidence-row" key={`${edge.from}-${edge.to}`} onClick={() => { setSearch(''); setSelectedId(otherId); }}>
                 <span className={`evidence-mark ${edge.kind}`} aria-hidden="true">{edge.kind === 'cochange' ? <Activity size={13} /> : <ArrowDownRight size={14} />}</span>
                 <span className="evidence-copy"><strong>{other?.id ?? otherId}</strong><small>{edge.evidence}</small></span>
                 <span className={`signal-tag ${edge.kind}`}>{edge.kind === 'imports' ? 'IMPORT' : edge.kind === 'contains' ? 'CONTAINS' : 'HISTORY'}</span>
                 <ArrowRight className="row-arrow" size={14} />
               </button>;
-            }) : <div className="empty-evidence">No connections found for this file in the current view.</div>}
+            }) : <div className="empty-evidence">No connections for this file with the selected filter. Try All signals or another file.</div>}
           </div>
           <div className="evidence-footnote"><ShieldCheck size={14} /><span>Every link can be traced to code structure or a shared commit.</span></div>
         </article>
@@ -256,7 +261,7 @@ function App() {
         <div className="section-head signals-heading"><div><h2>Review signals</h2><p>Evidence to bring into your next code review.</p></div><span className="signals-count">{findings.length} FINDINGS IN FOCUS</span></div>
         <div className="signals-table">
           <div className="table-head"><span>OBSERVATION</span><span>SUPPORTING EVIDENCE</span><span>OPEN</span></div>
-          {findings.length ? findings.map((finding, index) => <button className="finding-row" key={`${finding.node}-${index}`} onClick={() => setSelectedId(finding.node)}>
+          {findings.length ? findings.map((finding, index) => <button className="finding-row" key={`${finding.node}-${index}`} onClick={() => { setSearch(''); setSelectedId(finding.node); }}>
             <span className="finding-main"><span className={`finding-severity ${finding.severity}`}>{finding.severity === 'high' ? <TriangleAlert size={14} /> : finding.severity === 'test' ? <Check size={14} /> : <Activity size={14} />}</span><span><strong>{finding.title}</strong><small>{finding.detail}</small></span></span>
             <span className="finding-evidence">{finding.evidence}</span><ArrowUpRight className="finding-open" size={15} />
           </button>) : <div className="table-empty">Choose another file or switch to all signals to see related review evidence.</div>}
@@ -265,14 +270,14 @@ function App() {
 
       {data.suggestedChecks.length > 0 && <section className="check-section">
         <div className="check-title"><span className="panel-index">C</span><div><h2>Suggested checks</h2><p>Practical follow-ups grounded in the same evidence.</p></div></div>
-        <div className="check-list">{data.suggestedChecks.map((check) => <div className="check-row" key={check.path}><span className="check-box" aria-hidden="true"><Check size={12} /></span><div><strong>{check.label}</strong><small>{check.path} <span>·</span> {check.reason}</small></div><ArrowRight size={14} /></div>)}</div>
+        <div className="check-list">{data.suggestedChecks.map((check) => <div className="check-row" key={check.path}><span className="check-box" aria-hidden="true"><CircleHelp size={12} /></span><div><strong>{check.label}</strong><small>{check.path} <span>·</span> {check.reason}</small></div><ArrowRight size={14} /></div>)}</div>
       </section>}
 
-      <section className="connect-repo"><div className="connect-graphic" aria-hidden="true"><span /><span /><span /><span /><i /><i /></div><div><h2>Make the map yours.</h2><p>Point Stxic Atlas at a local Git folder to replace this illustrative map with signals from your own history.</p></div><form className="connect-form" onSubmit={analyze}><label className="sr-only" htmlFor="repo-path-bottom">Local Git repository folder path</label><input id="repo-path-bottom" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="C:\path\to\your\repository" /><button type="submit" disabled={busy}>{busy ? 'Scanning…' : 'Analyze local repo'}<ArrowRight size={15} /></button></form></section>
+      <section className="connect-repo"><div className="connect-graphic" aria-hidden="true"><span /><span /><span /><span /><i /><i /></div><div><h2>Use your own project</h2><p>Paste your project folder above to see real file connections. A Git project is a folder that tracks saved code changes.</p></div><form className="connect-form" onSubmit={analyze}><label className="sr-only" htmlFor="repo-path-bottom">Local Git repository folder path</label><input id="repo-path-bottom" value={repoPath} onChange={(e) => setRepoPath(e.target.value)} placeholder="C:\path\to\your\repository" /><button type="submit" disabled={busy}>{busy ? 'Scanning…' : 'Scan project'}<ArrowRight size={15} /></button></form></section>
       </> : null}
       <div hidden={activeWorkspace !== 'review'}><ReviewPanel repoPath={repoPath} onRepoPathChange={setRepoPath} /></div>
 
-      <footer className="footer"><div className="footer-mark"><span className="brand-glyph" aria-hidden="true"><span /><span /><span /><span /></span>STXIC ATLAS</div><span>Local-first repository intelligence <i>·</i> Source stays local.</span><span className="footer-build">Built to make the evidence visible.</span></footer>
+      <footer className="footer"><div className="footer-mark"><Logo />STXIC ATLAS</div><span>Local-first repository intelligence <i>·</i> Source stays local.</span><span className="footer-build">Built to make the evidence visible.</span></footer>
     </main>
 
     {notice && <div className="toast" role="status"><Check size={15} />{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}

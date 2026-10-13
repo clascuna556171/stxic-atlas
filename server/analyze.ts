@@ -4,8 +4,9 @@ import { readRepositoryFile, repositoryRoot, runGit } from './repository.js';
 
 export async function analyzeRepository(value: unknown): Promise<AtlasData> {
   const root = await repositoryRoot(value);
+  const hasHistory = await runGit(root, ['rev-parse', '--verify', 'HEAD']).then(() => true, () => false);
   const [{ stdout: log }, { stdout: files }, { stdout: branch }] = await Promise.all([
-    runGit(root, ['log', '-n', '400', '--format=%x1e%H%x1f%an', '--name-only', '--']),
+    hasHistory ? runGit(root, ['log', '-n', '400', '--format=%x1e%H%x1f%an', '--name-only', '--']) : Promise.resolve({ stdout: '' }),
     runGit(root, ['ls-files', '-z']),
     runGit(root, ['branch', '--show-current']),
   ]);
@@ -15,7 +16,7 @@ export async function analyzeRepository(value: unknown): Promise<AtlasData> {
   });
   const paths = files.split('\0').filter((path) => /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php|vue|svelte)$/.test(path))
     .filter((path) => !path.split('/').some((part) => ['node_modules', 'dist', 'build', '.git'].includes(part))).slice(0, 140);
-  if (!paths.length) throw new Error('No supported source files were found in this repository.');
+  if (!paths.length) throw new Error('No supported code files are tracked by Git yet. Add your code files to Git, then scan again. The map supports JavaScript, TypeScript, Python, Go, Rust, Java, Kotlin, Ruby, PHP, Vue, and Svelte.');
   const scope = new Set(paths);
   const counts = new Map<string, number>();
   const cochanges = new Map<string, number>();

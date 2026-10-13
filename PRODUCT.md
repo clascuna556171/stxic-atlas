@@ -16,7 +16,7 @@ The primary audience is software engineers evaluating an unfamiliar repository a
 
 ## Product Purpose
 
-Stxic Atlas analyzes repository history and structure to help someone understand a proposed change: what it touches, what is historically coupled to it, and what evidence supports the impact assessment. Its optional Review swarm compares a local Git diff with user-provided change intent and recent commit context, then asks local-model specialist reviewers to find concrete risks and a skeptical chair to challenge them.
+Stxic Atlas analyzes repository history and structure to help someone understand a proposed change: what it touches, what is historically coupled to it, and what evidence supports the impact assessment. Its optional AI change review compares a local Git diff with user-provided change intent and recent commit context, then asks local-model specialist reviewers to find concrete risks and a skeptical chair to challenge them.
 
 ## Positioning
 

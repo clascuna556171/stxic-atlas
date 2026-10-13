@@ -5,7 +5,7 @@
 Stxic Atlas is a local-first web app for understanding the likely impact of a code change. It combines two distinct tools:
 
 1. **Impact map:** deterministic signals from a repository's current source imports and recent Git history.
-2. **Review swarm:** five specialist prompts sent to a model running in local Ollama, followed by a skeptical chair pass that checks proposed findings against the diff.
+2. **AI change review:** five specialist prompts sent to a model running in local Ollama, followed by a skeptical chair pass that checks proposed findings against the diff.
 
 The product is a portfolio project for demonstrating full-stack engineering, explainable analysis, local AI orchestration, and careful handling of uncertainty.
 
@@ -21,7 +21,7 @@ Show what evidence led to a signal. Keep repository source on the user's machine
 
 - Synthetic sample data can be explored without a repository or model.
 - Impact analysis reads a local Git repository and uses bounded recent history and a limited source-file set.
-- Review swarm compares working-tree changes with a selected Git ref using local Ollama.
+- AI change review compares working-tree changes with a selected Git ref using local Ollama.
 - Review feedback is stored in a local SQLite database and adjusts specialist weights within bounded limits.
 - Findings can be inspected against the exact diff and exported as JSON.
 - A visibly synthetic review walkthrough works without Ollama. Its feedback stays in memory and cannot tune real reviewer weights.

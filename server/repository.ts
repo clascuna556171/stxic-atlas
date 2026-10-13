@@ -9,10 +9,18 @@ export function runGit(repoPath: string, args: string[], maxBuffer = 8 * 1024 * 
 }
 
 export async function repositoryRoot(value: unknown) {
-  const raw = typeof value === 'string' ? value.trim() : '';
+  const raw = typeof value === 'string' ? value.trim().replace(/^"(.*)"$/, '$1') : '';
+  if (/^https?:\/\//i.test(raw)) throw new Error('Use the folder on your computer, not a website link. Download or clone the project first, then copy its folder path.');
   if (!raw || raw.length > 2048 || raw.includes('\0') || !isAbsolute(raw)) throw new Error('Enter an absolute local Git repository folder path.');
-  const selected = await realpath(resolve(raw));
-  const { stdout } = await runGit(selected, ['rev-parse', '--show-toplevel']);
+  let selected: string;
+  try { selected = await realpath(resolve(raw)); }
+  catch { throw new Error('That folder could not be found. In File Explorer, open your project, copy the address bar, and paste it here.'); }
+  let stdout: string;
+  try { ({ stdout } = await runGit(selected, ['rev-parse', '--show-toplevel'])); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Git is not installed or cannot be found. Install Git, then restart Stxic Atlas.');
+    throw new Error('This folder is not a Git project. Choose a project with Git history; ordinary folders and downloaded ZIPs may not have it.');
+  }
   const root = await realpath(stdout.trim());
   if (root !== selected) throw new Error('Choose the repository root folder.');
   return root;

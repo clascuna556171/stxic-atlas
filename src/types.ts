@@ -9,6 +9,11 @@ export type AtlasData = {
 };
 
 export type ReviewStatus = { available: boolean; models: string[]; reason: string };
+export type ChangePreview = {
+  repository: string; baseRef: string; branch: string; diff: string; diffTruncated: boolean;
+  files: { path: string; status: string; additions: number; deletions: number }[];
+  untrackedOmitted: string[]; commitMessages: string[];
+};
 export type ReviewFinding = {
   id: string; severity: 'critical' | 'high' | 'medium' | 'low'; category: string; title: string;
   file: string; line: number | null; comment: string; suggestedFix: string | null;
@@ -22,7 +27,7 @@ export type ReviewResult = {
   files: { path: string; status: string; additions: number; deletions: number }[];
   commitMessages: string[];
   contextFiles: string[];
-  changeSummary: string; purposeSummary: string; purposeSource: 'user' | 'git' | 'unprovided';
+  changeSummary: string; changeSummarySource: 'model' | 'git' | 'synthetic'; purposeSummary: string; purposeSource: 'user' | 'git' | 'unprovided';
   untrackedOmitted: string[]; diff: string; diffTruncated: boolean; findings: ReviewFinding[];
   decision: 'request-changes' | 'review-findings' | 'looks-clear' | 'partial-review'; confidence: number;
   agents: { id: 'security' | 'architecture' | 'quality' | 'tests' | 'performance'; name: string; weight: number; status: 'complete' | 'failed'; findings: number; elapsedMs: number; promptTokens: number; responseTokens: number; error?: string }[];
