@@ -46,7 +46,7 @@ test('real Git history counts changes and separates imports from co-change evide
 test('repository roots, traversal, file size and symlinked directories are bounded', async () => {
   await assert.rejects(repositoryRoot('.'), /absolute/);
   await mkdir(join(root, 'child'));
-  await assert.rejects(repositoryRoot(join(root, 'child')), /root folder/);
+  assert.equal(await repositoryRoot(join(root, 'child')), root);
   await assert.rejects(readRepositoryFile(root, '../outside.ts', 1000), /outside/);
   await assert.rejects(readRepositoryFile(root, 'a.ts', 2), /bounded/);
   const outside = join(temporary, 'outside');
@@ -269,4 +269,45 @@ test('malformed quick explanations fail without discarding factual preview', asy
   globalThis.fetch = async (url) => String(url).endsWith('/tags') ? Response.json({ models: [{ name: 'fixture' }] }) : Response.json({ message: { content: '{"whatChanged":"Changed","checks":[]}' } });
   try { await assert.rejects(explainChanges({ repoPath: root, model: 'fixture' }), /incomplete explanation/); assert.ok((await previewChanges({ repoPath: root })).diff.includes('b + 2')); }
   finally { globalThis.fetch = original; }
+});
+
+test('Flutter projects scan Dart imports and generated exports do not hide source changes', async () => {
+  const dartRoot = join(temporary, 'flutter-project');
+  await mkdir(join(dartRoot, 'lib'), { recursive: true });
+  await runGit(dartRoot, ['init']);
+  await writeFile(join(dartRoot, 'pubspec.yaml'), 'name: fixture_app\n');
+  await writeFile(join(dartRoot, 'lib', 'main.dart'), "import 'package:fixture_app/helper.dart';\nimport 'local.dart';\nvoid main() { helper(); local(); }\n");
+  await writeFile(join(dartRoot, 'lib', 'helper.dart'), 'void helper() {}\n');
+  await writeFile(join(dartRoot, 'lib', 'local.dart'), 'void local() {}\n');
+  await runGit(dartRoot, ['add', '--', 'pubspec.yaml', 'lib']);
+  await runGit(dartRoot, ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Synthetic Flutter project']);
+  const map = await analyzeRepository(join(dartRoot, 'lib'));
+  assert.equal(map.summary.files, 3);
+  assert.ok(map.edges.some((edge) => edge.kind === 'imports' && edge.from === 'lib/main.dart' && edge.to === 'lib/helper.dart'));
+  assert.ok(map.edges.some((edge) => edge.kind === 'imports' && edge.from === 'lib/main.dart' && edge.to === 'lib/local.dart'));
+  await mkdir(join(dartRoot, 'brag-output-synthetic'), { recursive: true });
+  for (let index = 0; index < 25; index++) await writeFile(join(dartRoot, 'brag-output-synthetic', `${index}.json`), '{}');
+  await writeFile(join(dartRoot, 'lib', 'new.dart'), 'const newValue = 2;\n');
+  const preview = await previewChanges({ repoPath: dartRoot });
+  assert.deepEqual(preview.files.map((file) => file.path), ['lib/new.dart']);
+  assert.equal(preview.generatedExcluded?.length, 25);
+  assert.equal(preview.untrackedOmitted.length, 0);
+  assert.ok(preview.diff.includes('const newValue = 2'));
+});
+
+test('cloud account block stops deeper review after one request with actionable error', async () => {
+  const original = globalThis.fetch;
+  let chats = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/tags')) return Response.json({ models: [{ name: 'fixture' }] });
+    chats++; return new Response('private provider error body', { status: 402 });
+  };
+  try {
+    await connectCloud('synthetic-test-key');
+    const input = { repoPath: root, model: 'fixture', provider: 'cloud' };
+    const preview = await prepareDisclosure({ ...input, mode: 'review' });
+    assert.ok(preview.files.includes('a.ts'));
+    await assert.rejects(runReview({ ...input, disclosureDigest: preview.digest }), /blocked.*402.*usage allowance/);
+    assert.equal(chats, 1, 'no further specialists or final review after account denial');
+  } finally { disconnectCloud(); globalThis.fetch = original; }
 });

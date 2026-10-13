@@ -23,7 +23,7 @@ Structural imports and history co-changes use different colors and line styles. 
 
 ## Appearance and accessibility
 
-The header offers System (default), Light, and Dark appearance. System follows the operating system, including changes while the app is open. The choice stays in browser local storage; it is not sent to the backend. Appearance is applied before React mounts. Shared semantic color tokens cover both workspaces, SVG map labels, form controls, diff excerpts, and dialogs. Dark appearance uses a charcoal canvas with raised surfaces, cyan structural signals, and vermilion selection. Both themes retain explicit labels and line styles for signal meaning.
+The header offers Light, Dark, and Auto (default) appearance buttons. Auto follows the operating system, including changes while the app is open. The choice stays in browser local storage; it is not sent to the backend. Appearance is applied before React mounts. Shared semantic color tokens cover both workspaces, SVG map labels, form controls, diff excerpts, and dialogs. Dark appearance uses a charcoal canvas with raised surfaces, cyan structural signals, and vermilion selection. Both themes retain explicit labels and line styles for signal meaning.
 
 Small supporting copy has stronger contrast; important annotations have larger text. Mobile actions have at least 44px height, form focus remains visible, and a skip link goes directly to the workspace. Signal filters are pressed buttons rather than incomplete ARIA tabs.
 
@@ -47,3 +47,8 @@ Barlow Condensed carries display headings; DM Sans carries interface copy; IBM P
 ## Explanation first
 
 Organize the main task around project choice, factual change preview, and a short AI explanation. Keep specialist weights and debate details out of the initial screen; they appear when a deeper review runs or has results. Quick explanations use three ordinary questions, with expandable code evidence rather than unsupported certainty. Local/cloud selection states the privacy boundary before submission. A native confirmation dialog exposes outgoing cloud context and requires explicit consent, with cancellation and Escape available. Folder browsing and recent paths complement the pasted path without replacing it. Existing palette, fonts, themes, keyboard controls, and reduced-motion behavior remain.
+
+
+## Clear appearance and guidance
+
+Light/Dark/Auto are labeled pressed buttons in a group, with 44px mobile targets and an independent full-width row on narrow screens. Auto follows the operating system. Optional inline guidance and the help dialog explain the actual task and the Git prerequisite. Cloud confirmation leads with filenames, bounded-coverage notes, and plain consent; raw context is an expandable detail. A zero-completion failure uses a warning icon and explicit failure wording, never a success checkmark.

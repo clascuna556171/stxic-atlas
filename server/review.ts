@@ -6,7 +6,8 @@ import { homedir } from 'node:os';
 import fsSync from 'node:fs';
 import { readRepositoryFile, repositoryRoot, runGit } from './repository.js';
 import { createHash, randomUUID } from 'node:crypto';
-import { chatRequest, checkCloudModel, validateProvider } from './ai.js';
+import { AIServiceError, chatRequest, checkCloudModel, validateProvider } from './ai.js';
+import { isGeneratedPath } from './sourceScope.js';
 
 const OLLAMA_URL = 'http://127.0.0.1:11434';
 const FEEDBACK_DIR = join(process.env.LOCALAPPDATA || homedir(), '.change-atlas');
@@ -200,8 +201,10 @@ async function collectPatch(repoPath: string, baseRef: string) {
     entry.deletions = Number(deleted) || 0;
   }
   const untrackedPaths = untracked.split('\0').filter(Boolean);
-  const untrackedNames = untrackedPaths.slice(0, 20);
-  const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs', '.java', '.kt', '.rb', '.php', '.vue', '.svelte', '.css', '.scss', '.html', '.sql', '.sh', '.yml', '.yaml', '.json', '.toml']);
+  const generatedExcluded = untrackedPaths.filter(isGeneratedPath);
+  const candidatePaths = untrackedPaths.filter((path) => !isGeneratedPath(path));
+  const untrackedNames = candidatePaths.slice(0, 20);
+  const sourceExtensions = new Set(['.dart', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.go', '.rs', '.java', '.kt', '.rb', '.php', '.vue', '.svelte', '.css', '.scss', '.html', '.sql', '.sh', '.yml', '.yaml', '.json', '.toml']);
   let newFileDiff = '';
   for (const path of untrackedNames) {
     if (!sourceExtensions.has(extname(path).toLowerCase()) || path.split(/[\\/]/).some((part) => ['node_modules', '.git', 'dist', 'build'].includes(part))) continue;
@@ -220,7 +223,7 @@ async function collectPatch(repoPath: string, baseRef: string) {
   const fullDiff = `${diff}${newFileDiff}`;
   const diffTruncated = fullDiff.length > MAX_PATCH_CHARS;
   const limitedDiff = fullDiff.slice(0, MAX_PATCH_CHARS);
-  return { diff: limitedDiff, diffTruncated, files: [...changedFiles.values()], untrackedOmitted: untrackedPaths.filter((path) => !changedFiles.has(path.replaceAll('\\', '/'))), branch: branchName.trim() || 'detached HEAD', commitMessages: commitSubjects.split(/\r?\n/).filter(Boolean) };
+  return { diff: limitedDiff, diffTruncated, files: [...changedFiles.values()], generatedExcluded, untrackedOmitted: candidatePaths.filter((path) => !changedFiles.has(path.replaceAll('\\', '/'))), branch: branchName.trim() || 'detached HEAD', commitMessages: commitSubjects.split(/\r?\n/).filter(Boolean) };
 }
 
 function groupFindings(rows: ReturnType<typeof parseFindings>, agents: ReviewResult['agents']): ReviewFinding[] {
@@ -320,7 +323,7 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
   const changedLines = parseChangedLines(promptDiff);
   const weights = adjustedWeights();
   const agents: ReviewResult['agents'] = roleSpecs.map((role) => ({ id: role.id, name: role.name, weight: weights[role.id], status: 'failed', findings: 0, elapsedMs: 0, promptTokens: 0, responseTokens: 0, error: 'Review pending.' }));
-  const results = await Promise.all(roleSpecs.map(async (role) => {
+  const reviewRole = async (role: typeof roleSpecs[number]) => {
     const agent = agents.find((item) => item.id === role.id)!;
     const started = Date.now();
     try {
@@ -329,10 +332,14 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
       Object.assign(agent, { status: 'complete', findings: parsedFindings.length, elapsedMs: result.durationMs || Date.now() - started, promptTokens: result.promptTokens, responseTokens: result.responseTokens, error: undefined });
       return { findings: parsedFindings };
     } catch (error) {
+      if (provider === 'cloud' && role.id === roleSpecs[0].id && error instanceof AIServiceError) throw error;
       Object.assign(agent, { status: 'failed', elapsedMs: Date.now() - started, error: error instanceof Error ? error.message.slice(0, 180) : 'Agent failed.' });
       return { findings: [] };
     }
-  }));
+  };
+  // Use the first specialist to detect denied cloud access before starting four more requests.
+  const first = provider === 'cloud' ? await reviewRole(roleSpecs[0]) : null;
+  const results = first ? [first, ...await Promise.all(roleSpecs.slice(1).map(reviewRole))] : await Promise.all(roleSpecs.map(reviewRole));
   const findings = groupFindings(results.flatMap((result) => result.findings), agents);
   let chair: ReviewResult['chair'] = { status: 'skipped', elapsedMs: 0 };
   let finalFindings = findings;
@@ -340,6 +347,7 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
   let chairTokens = 0;
   const chairStarted = Date.now();
   try {
+    if (!agents.some((agent) => agent.status === 'complete')) throw new Error('No AI checks completed. The final review was not requested.');
     const chairResult = await challengeFindings(model, promptDiff, findings, { intent, commitMessages: patch.commitMessages, projectContext }, provider);
     finalFindings = chairResult.findings;
     changeSummary = chairResult.changeSummary;
@@ -356,7 +364,7 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
   const result: ReviewResult = {
     synthetic: false, provider,
     reviewId, repository: repoName, branch: patch.branch, baseRef, model, intent, reviewedAt: new Date().toISOString(), elapsedMs: Date.now() - startedAt,
-    files: patch.files, untrackedOmitted: patch.untrackedOmitted, commitMessages: patch.commitMessages, contextFiles: projectContext.map((document) => document.path),
+    files: patch.files, generatedExcluded: patch.generatedExcluded, untrackedOmitted: patch.untrackedOmitted, commitMessages: patch.commitMessages, contextFiles: projectContext.map((document) => document.path),
     changeSummarySource: changeSummary ? 'model' : 'git',
     changeSummary: changeSummary || `${patch.files.length} changed file${patch.files.length === 1 ? '' : 's'} (+${patch.files.reduce((sum, file) => sum + file.additions, 0)}, −${patch.files.reduce((sum, file) => sum + file.deletions, 0)} lines). Model summary unavailable.`,
     purposeSummary: intent ? `User-provided: ${intent}` : patch.commitMessages.length ? `Git commit context: ${patch.commitMessages.join(' · ')}` : 'Not provided.',
@@ -409,12 +417,13 @@ async function prepareInput(input: AIInput) {
   const patch = await collectPatch(repoPath, baseRef);
   if (!patch.files.length || !patch.diff.trim()) throw new Error('No changes found. Choose Latest saved commit + edits, or edit a tracked file.');
   const projectContext = await readProjectContext(repoPath);
-  return { provider, repoPath, baseRef, model, intent, patch, content: contextContent(patch, projectContext, intent, baseRef) };
+  return { provider, repoPath, baseRef, model, intent, patch, projectContext, content: contextContent(patch, projectContext, intent, baseRef) };
 }
 export async function prepareDisclosure(input: AIInput & { mode?: unknown }): Promise<Disclosure> {
   if (!['explain', 'review'].includes(String(input.mode))) throw new Error('Choose an explanation or deeper review.');
-  const { content, model } = await prepareInput(input);
-  return { digest: disclosureDigest(content, model, String(input.mode)), content, model, mode: input.mode as Disclosure['mode'] };
+  const { content, model, patch, projectContext } = await prepareInput(input);
+  const files = patch.files.map((file) => file.path);
+  return { digest: disclosureDigest(content, model, String(input.mode)), content, model, files, documents: projectContext.map((doc) => doc.path), partial: patch.diffTruncated || patch.untrackedOmitted.length > 0, mode: input.mode as Disclosure['mode'] };
 }
 export async function explainChanges(input: AIInput): Promise<Explanation> {
   const started = Date.now();

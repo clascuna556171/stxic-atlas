@@ -3,6 +3,7 @@ export type AtlasEdge = { from: string; to: string; kind: 'imports' | 'cochange'
 export type Finding = { severity: string; title: string; detail: string; evidence: string; node: string };
 export type Check = { label: string; path: string; reason: string };
 export type AtlasData = {
+  repoPath?: string;
   repository: string; branch: string; scannedAt: string; synthetic: boolean;
   summary: { commits: number; files: number; contributors: number; hotspots: number };
   nodes: AtlasNode[]; edges: AtlasEdge[]; findings: Finding[]; suggestedChecks: Check[];
@@ -11,8 +12,9 @@ export type AtlasData = {
 export type ReviewStatus = { available: boolean; models: string[]; reason: string };
 export type AIProvider = 'local' | 'cloud';
 export type Explanation = { repository: string; baseRef: string; diff: string; model: string; provider: AIProvider; whatChanged: string; whyItMatters: string; checks: { text: string; file: string; line: number }[]; partial: boolean; elapsedMs: number };
-export type Disclosure = { digest: string; content: string; mode: 'explain' | 'review'; model: string };
+export type Disclosure = { digest: string; content: string; mode: 'explain' | 'review'; model: string; files: string[]; documents: string[]; partial: boolean };
 export type ChangePreview = {
+  generatedExcluded?: string[];
   repository: string; baseRef: string; branch: string; diff: string; diffTruncated: boolean;
   files: { path: string; status: string; additions: number; deletions: number }[];
   untrackedOmitted: string[]; commitMessages: string[];
@@ -24,6 +26,7 @@ export type ReviewFinding = {
   agreement: number; chairVerdict: 'supported' | 'questioned' | 'dismissed' | 'not-run'; chairReason: string;
 };
 export type ReviewResult = {
+  generatedExcluded?: string[];
   provider?: AIProvider;
   synthetic: boolean;
   reviewId: string; repository: string; branch: string; baseRef: string; model: string; intent: string;

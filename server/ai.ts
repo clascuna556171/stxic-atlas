@@ -2,6 +2,9 @@ import type { AIProvider } from '../src/types.js';
 
 let cloudKey = '';
 let cloudModels: string[] = [];
+export class AIServiceError extends Error {
+  constructor(public status: number, message: string) { super(message); this.name = 'AIServiceError'; }
+}
 export function disconnectCloud() { cloudKey = ''; cloudModels = []; }
 export function cloudStatus() { return { available: !!cloudKey && cloudModels.length > 0, models: [...cloudModels], reason: cloudKey ? '' : 'Connect your Ollama Cloud key to continue.' }; }
 export async function connectCloud(value: unknown) {
@@ -31,11 +34,21 @@ export async function chatRequest(provider: AIProvider, body: unknown) {
       method: 'POST', headers: { 'content-type': 'application/json', ...(provider === 'cloud' ? { Authorization: `Bearer ${cloudKey}` } : {}) },
       signal: AbortSignal.timeout(210_000), redirect: 'error', body: JSON.stringify(body),
     });
-    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Cloud authorization failed. Reconnect your key.' : `AI service returned ${response.status}. Check model availability or your usage allowance.`);
+    if (!response.ok) {
+      const messages: Record<number, string> = {
+        400: 'AI could not accept the request for this model. Choose another model. Your file preview is still available.',
+        401: 'Cloud authorization failed. Reconnect your key.',
+        403: 'Cloud authorization failed. Check whether your account can use this model, or choose local AI.',
+        402: 'Ollama Cloud blocked the AI request (402). Check your account’s usage allowance or plan, choose another available model, or use local AI. Checking files does not require cloud access.',
+        429: 'AI is receiving too many requests. Wait a little before trying again. Your file preview is still available.',
+        404: 'That AI model is no longer available. Refresh the model list or choose another model.',
+      };
+      throw new AIServiceError(response.status, messages[response.status] || `AI service returned ${response.status}. Try again later or choose another model.`);
+    }
     return await response.json();
   } catch (error) {
-    if (error instanceof Error && error.name === 'TimeoutError') throw new Error('AI took too long. Try a smaller change or another model.');
-    if (error instanceof Error && error.message.startsWith('AI service') || error instanceof Error && error.message.startsWith('Cloud authorization')) throw error;
-    throw new Error('Could not reach the selected AI service. Check the connection and try again.');
+    if (error instanceof Error && error.name === 'TimeoutError') throw new AIServiceError(504, 'AI took too long. Try a smaller change or another model.');
+    if (error instanceof AIServiceError) throw error;
+    throw new AIServiceError(503, 'Could not reach the selected AI service. Check the connection and try again.');
   }
 }

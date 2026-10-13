@@ -67,6 +67,33 @@
 * { box-sizing: border-box; }
 html { min-width: 300px; scroll-behavior: smooth; }
 body { margin: 0; min-width: 300px; min-height: 100vh; background: var(--canvas); }
+header.topbar { height: auto; min-height: 62px; }
+.theme-switch { display: flex; padding: 3px; border: 1px solid var(--line-strong); background: var(--paper); gap: 2px; }
+.theme-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 0; padding: 7px 10px; color: var(--muted); background: transparent; font: 13px "DM Sans", sans-serif; cursor: pointer; }
+.theme-switch button[aria-pressed="true"] { background: var(--action); color: var(--on-action); }
+.how-to { margin: 0 0 20px; padding: 14px 16px; border: 1px solid var(--line); background: var(--paper); }
+.how-to summary, .cloud-data summary { cursor: pointer; font-size: 14px; font-weight: 600; min-height: 30px; }
+.how-to p, .how-to li, .help-steps li { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 85ch; }
+.how-to ol, .help-steps { padding-left: 22px; }
+.how-to li, .help-steps li { margin: 12px 0; }
+.how-to strong { color: var(--ink); }
+.clear-review.incomplete-empty, .clear-review.incomplete-empty strong { color: var(--warning); }
+.cloud-summary { padding: 16px; background: var(--surface); border: 1px solid var(--line); }
+.cloud-summary ul { margin: 10px 0; padding-left: 20px; max-height: 160px; overflow: auto; }
+.cloud-summary li { overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
+.cloud-data { margin: 16px 0; }
+.finding-main > span:last-child { min-width: 0; flex: 1; }
+.review-report .clear-review strong { font-size: 15px; }
+.review-report .clear-review span, .agent-rail .agent-copy small, .agent-rail .agent-result { font-size: 12px; line-height: 1.6; }
+.change-brief > div > span { font-size: 11px; }
+.review-workspace .review-error { font-size: 13px; line-height: 1.6; }
+dialog.help-sheet { max-height: calc(100dvh - 32px); overflow: auto; }
+@media (max-width: 640px) {
+  header.topbar { height: auto; min-height: 54px; padding: 8px 14px; flex-wrap: wrap; }
+  .theme-switch { order: 10; flex: 0 0 100%; }
+  .theme-switch button { flex: 1; min-height: 44px; }
+  .how-to summary, .cloud-data summary { min-height: 44px; }
+}
 button, input { font: inherit; }
 button { color: inherit; }
 ::selection { background: var(--accent); color: var(--on-action); }

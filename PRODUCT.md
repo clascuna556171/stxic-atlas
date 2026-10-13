@@ -12,7 +12,7 @@ delegated: React, TypeScript, and a small Node.js service; selected for a full-s
 
 ## Users
 
-The primary audience is software engineers evaluating an unfamiliar repository and engineers preparing to explain a codebase or change to another person. This project should also demonstrate full-stack engineering skills to recruiters.
+The audience includes developers, project owners, designers, testers, and people deciding whether to approve a software change. They still need a local Git project, but should not need to understand Git terminology to use the main workflow. This project should also demonstrate full-stack engineering skills to recruiters.
 
 ## Product Purpose
 
@@ -52,3 +52,6 @@ The workspace was empty when work began. No production repository, customer data
 ## Approved optional cloud scope
 
 The user approved optional cloud support alongside a simpler explanation workflow. Cloud is an explicit choice, never a fallback. One explanation pass precedes the optional deeper review; it does not imply a security audit or approval. Keys remain in local server memory, and each cloud action requires inspection of its outgoing repository context.
+
+
+Plain-language guidance defines Git as saved-version history, explains the file map as clues, and keeps optional technical detail inspectable. Scanning supports Flutter/Dart as well as the existing languages. Cloud-account problems must be distinguished from local scan problems and never shown as successful checks.

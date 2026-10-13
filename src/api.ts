@@ -13,10 +13,11 @@ export function explanation(value: unknown): Explanation {
   return value as unknown as Explanation;
 }
 export function disclosure(value: unknown): Disclosure {
-  if (!object(value) || typeof value.digest !== 'string' || !/^[a-f0-9]{64}$/.test(value.digest) || typeof value.content !== 'string' || typeof value.model !== 'string' || !['explain', 'review'].includes(String(value.mode))) throw new Error('The cloud preview was incomplete. Nothing was sent.');
+  if (!object(value) || typeof value.digest !== 'string' || !/^[a-f0-9]{64}$/.test(value.digest) || typeof value.content !== 'string' || typeof value.model !== 'string' || !strings(value.files) || !strings(value.documents) || typeof value.partial !== 'boolean' || !['explain', 'review'].includes(String(value.mode))) throw new Error('The cloud preview was incomplete. Nothing was sent.');
   return value as unknown as Disclosure;
 }
 export function changePreview(value: unknown): ChangePreview {
+  if (object(value) && value.generatedExcluded !== undefined && !strings(value.generatedExcluded)) throw new Error('Invalid excluded-file details.');
   if (!object(value) || !['repository', 'branch', 'baseRef', 'diff'].every((key) => typeof value[key] === 'string')
     || typeof value.diffTruncated !== 'boolean' || !strings(value.commitMessages) || !strings(value.untrackedOmitted)
     || !Array.isArray(value.files) || !value.files.every((file) => object(file) && typeof file.path === 'string' && typeof file.status === 'string' && Number.isFinite(file.additions) && Number.isFinite(file.deletions)))
@@ -24,6 +25,7 @@ export function changePreview(value: unknown): ChangePreview {
   return value as unknown as ChangePreview;
 }
 export function atlasData(value: unknown): AtlasData {
+  if (object(value) && value.repoPath !== undefined && typeof value.repoPath !== 'string') throw new Error('Invalid project folder details.');
   if (!object(value) || !object(value.summary) || typeof value.repository !== 'string' || typeof value.branch !== 'string' || typeof value.scannedAt !== 'string' || typeof value.synthetic !== 'boolean' || !Array.isArray(value.nodes) || !value.nodes.length || !Array.isArray(value.edges) || !Array.isArray(value.findings) || !Array.isArray(value.suggestedChecks)
     || !['commits', 'files', 'contributors', 'hotspots'].every((key) => object(value.summary) && typeof value.summary[key] === 'number')
     || !value.nodes.every((node) => object(node) && ['id', 'label', 'group'].every((key) => typeof node[key] === 'string') && ['x', 'y', 'commits'].every((key) => typeof node[key] === 'number'))
@@ -42,6 +44,7 @@ export function reviewStatus(value: unknown): ReviewStatus {
   return value as unknown as ReviewStatus;
 }
 export function reviewResult(value: unknown): ReviewResult {
+  if (object(value) && value.generatedExcluded !== undefined && !strings(value.generatedExcluded)) throw new Error('Invalid excluded-file details.');
   if (object(value) && value.provider !== undefined && !['local', 'cloud'].includes(String(value.provider))) throw new Error('The review provider is invalid.');
   if (!object(value) || typeof value.synthetic !== 'boolean' || !['reviewId', 'repository', 'branch', 'baseRef', 'diff', 'changeSummary', 'purposeSummary'].every((key) => typeof value[key] === 'string')
     || !strings(value.contextFiles) || !strings(value.commitMessages) || !strings(value.untrackedOmitted) || !object(value.metrics) || !object(value.chair)

@@ -4,7 +4,7 @@ This document describes behavior that exists in the current app. Proposed future
 
 ## 1. Explore the sample
 
-The Appearance control in the header switches between System, Light, and Dark in either workspace. The browser remembers the choice across reloads. System automatically follows operating-system appearance changes.
+The Appearance control in the header switches between Light, Dark, and Auto in either workspace. The browser remembers the choice across reloads. Auto automatically follows operating-system appearance changes.
 
 Switching workspaces retains review inputs, findings, votes, and any running review for the current page session. Reloading the page starts a new session.
 
@@ -31,12 +31,12 @@ Switching workspaces retains review inputs, findings, votes, and any running rev
 
 ## 3. Review a local change with the swarm
 
-The screen is labeled **AI change review**. Choose Current edits, Latest saved commit + edits, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** performs one plain explanation; **Run deeper review** performs five specialist passes and the final reviewer. Both check the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
+The screen is labeled **AI change review**. Choose Current edits, Latest saved version, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** performs one plain explanation; **Run deeper review** performs five specialist passes and the final reviewer. Both check the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
 
 1. The user opens **AI change review**, selects a local repository, and chooses a comparison ref (default `HEAD`).
 2. They select an installed local Ollama chat model and may enter why the change was made.
 3. Stxic Atlas collects the Git diff, supported untracked source files, branch and commit context, and available project documents.
-4. Five specialist passes review the same bounded diff concurrently. Each returns structured findings tied to changed files and lines.
+4. Five specialist passes review the same bounded diff. Local passes run concurrently; cloud runs the first pass before starting the other four. Each returns structured findings tied to changed files and lines.
 5. The app groups overlapping findings and calculates weighted agreement from the participating agents' weights and confidence.
 6. A skeptical chair summarizes the change and challenges each proposal against the diff. It can support, question, or dismiss findings; it does not create new ones.
 7. The UI shows the decision, partial-run status, model usage, findings, exact diff, and the source of purpose context.
@@ -71,3 +71,12 @@ Local AI is the default. To use cloud, explicitly select Ollama Cloud, connect a
 Windows folder browsing preserves the current selection when cancelled and validates a chosen Git root. A timed-out chooser offers the pasted-path alternative. Successful selections/checks populate up to five recent browser-local paths; Forget recent removes them.
 
 If the project changes through File connections during AI work, the request finishes but its old result is not placed under the new project. Previous ready messages, findings, and votes clear with a changed project/comparison. This does not cancel inference already in progress.
+
+
+## 7. Scan a Flutter project and recover from cloud failure
+
+Choose a project or a subfolder inside it. Stxic resolves and displays the Git project root, reads supported tracked source including Dart, and maps relative/local-package Dart imports where possible. Generated untracked build/cache/export outputs are labeled as intentionally excluded; they do not crowd source files out of the preview. When only generated outputs changed, the preview correctly says no source edits were found. Choose Latest saved version to inspect already committed work.
+
+Cloud denial returns a clear account/model-access error and leaves the factual preview usable. If the first cloud reviewer is denied, remaining specialist/final calls are not started. No automatic local fallback occurs. Check the cloud account or choose local AI explicitly. A report with zero completed checks states that AI could not check the change.
+
+The header buttons select Light/Dark/Auto with keyboard support and a visible selected state. New here? and the help dialog explain how to choose a folder, see changed files, get an explanation, and interpret file connections. Cloud confirmation lists changed filenames and included project notes, with exact context under an expandable detail. Existing consent and cancellation still apply.

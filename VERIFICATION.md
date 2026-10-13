@@ -1,5 +1,15 @@
 # Stxic Atlas verification — October 13, 2026
 
+## Flutter scanning, readable failures, and simpler UI
+
+- 24 automated tests passed. New cases scan a synthetic Flutter project (Dart relative/local package imports and subfolder resolution), exclude generated exports before the source-file cap, and prove a simulated cloud 402 stops after one request. Existing privacy, diff citation, partial-result, malformed-response, and consent tests still pass.
+- The actual user-selected Worthit checkout was scanned locally: 126 source files, 28 displayed nodes including 25 Dart files. A quoted nested lib-folder selection succeeded and the UI normalized it to the enclosing Git project. No files in that checkout were modified.
+- The HEAD preview in that checkout found zero current source edits and separated 274 generated exports from source omissions. Those exports previously consumed the preview window; no cloud inference was needed or run for this check.
+- Light/Dark/Auto buttons were exercised by keyboard, including Auto and restoration to Light. The 310px layout has 44px theme targets and 301px page width after fixing long observation text overflow. The optional usage guide opens, and the help dialog describes the workflow and Git prerequisite in plain language.
+- Cloud confirmation now summarizes filenames/documents and hides raw context in an expandable detail. Existing consent and digest guards remain. Live paid cloud inference was not retried; account allowance/access is external to Stxic. Account-denial behavior was verified with mocked replies, not the user's key.
+
+The production build and whitespace check were run before publishing. Scans remain local, selected subfolders resolve only to a contained canonical Git root, source reads remain bounded, and generated-file exclusions are visible. The appearance preference uses the existing browser-local key; no new hosted service, paid account change, or upload during scanning was introduced.
+
 ## Explanation workflow and optional cloud
 
 - `npm test`: 22 passed. New checks cover a single local explanation call, remote-model exclusion, invalid citations, malformed explanations, cloud key clearing, source/intent/action-bound consent, six-call cloud review orchestration, sanitized authorization failures, and no provider fallback. Cloud responses and credentials in these tests are synthetic mocks.

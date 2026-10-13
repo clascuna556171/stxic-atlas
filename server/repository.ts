@@ -22,7 +22,8 @@ export async function repositoryRoot(value: unknown) {
     throw new Error('This folder is not a Git project. Choose a project with Git history; ordinary folders and downloaded ZIPs may not have it.');
   }
   const root = await realpath(stdout.trim());
-  if (root !== selected) throw new Error('Choose the repository root folder.');
+  const selectedWithinRoot = relative(root, selected);
+  if (selectedWithinRoot === '..' || selectedWithinRoot.startsWith(`..${sep}`) || isAbsolute(selectedWithinRoot)) throw new Error('Choose a folder inside this Git project.');
   return root;
 }
 

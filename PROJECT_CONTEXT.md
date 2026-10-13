@@ -21,7 +21,7 @@ Show what evidence led to a signal. Keep scanning local; require an outgoing-con
 
 - Synthetic sample data can be explored without a repository or model.
 - Impact analysis reads a local Git repository and uses bounded recent history and a limited source-file set.
-- AI change review compares working-tree changes with a selected Git ref using local Ollama.
+- AI change review compares working-tree changes with a selected Git ref using local Ollama by default or explicitly confirmed Ollama Cloud.
 - Review feedback is stored in a local SQLite database and adjusts specialist weights within bounded limits.
 - Findings can be inspected against the exact diff and exported as JSON.
 - A visibly synthetic review walkthrough works without Ollama. Its feedback stays in memory and cannot tune real reviewer weights.
@@ -44,3 +44,8 @@ The original idea brief describes possible CLI, webhook, GitHub comment, CI, sta
 ## Explanation and setup
 
 A single-pass explanation describes what changed, why it matters, and suggested checks tied to changed lines. It is separate from deeper review. Windows folder browsing, five browser-local recent paths, AI readiness, and cloud key connection controls simplify setup. Cloud keys exist only in local server memory; scans and change previews never call cloud AI.
+
+
+## Usability follow-up
+
+The app supports Flutter/Dart scanning and subfolder-to-project resolution. It separates generated untracked exports from source changes, gives optional plain-language usage guidance, and uses labeled appearance buttons. Cloud access failures stop blocked first-review runs and cannot appear as successful no-finding reviews. Human-readable cloud confirmation retains exact expandable context and explicit consent.

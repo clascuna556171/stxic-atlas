@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, CircleHelp, Command, Download, FileCode2, GitBranch, LoaderCircle, Map, Search, ShieldCheck, SunMoon, TriangleAlert, X } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Check, CircleHelp, Command, Download, FileCode2, GitBranch, LoaderCircle, Map, Search, ShieldCheck, TriangleAlert, X } from 'lucide-react';
 import type { AtlasData, AtlasNode } from './types';
 import ReviewPanel from './ReviewPanel';
 import Logo from './Logo';
+import AppearanceControl from './AppearanceControl';
+import UseGuide from './UseGuide';
 import ProjectPicker, { rememberProject } from './ProjectPicker';
 import { downloadText } from './download';
 import { atlasData, readResponse } from './api';
@@ -84,8 +86,8 @@ function App() {
       const response = await fetch('/api/analyze', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ repoPath: folderPath }) });
       const result = atlasData(await readResponse(response));
       setData(result);
-      setRepoPath(folderPath);
-      rememberProject(folderPath);
+      setRepoPath(result.repoPath ?? folderPath);
+      rememberProject(result.repoPath ?? folderPath);
       setSelectedId(result.nodes[0]?.id ?? '');
       setNotice(`Analysis ready · ${result.summary.files} source files indexed`);
       setSearch('');
@@ -152,7 +154,7 @@ function App() {
       <div className="repo-switcher"><GitBranch size={15} /><span>{activeWorkspace === 'impact' ? data.repository : reviewRepoName || 'Choose local repository'}</span></div>
       <div className="top-spacer" />
       <span className="local-pill"><span className="local-dot" />LOCAL WORKSPACE</span>
-      <label className="appearance-control"><SunMoon size={16} aria-hidden="true" /><span className="sr-only">Appearance</span><select value={appearance} onChange={(event) => setAppearance(event.target.value as Appearance)}><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+      <AppearanceControl value={appearance} onChange={setAppearance} />
       <button className="icon-button help-button" aria-label="About Stxic Atlas" onClick={() => setShowHelp(true)}><CircleHelp size={18} /></button>
     </header>
 
@@ -180,6 +182,7 @@ function App() {
         <button className={activeWorkspace === 'impact' ? 'active' : ''} aria-current={activeWorkspace === 'impact' ? 'page' : undefined} onClick={() => setActiveWorkspace('impact')}><Map size={14} />File connections</button>
         <button className={activeWorkspace === 'review' ? 'active' : ''} aria-current={activeWorkspace === 'review' ? 'page' : undefined} onClick={() => setActiveWorkspace('review')}><ShieldCheck size={14} />AI change review</button>
       </nav>
+      <UseGuide />
 
       {activeWorkspace === 'impact' ? <>
       <div className="getting-started"><div><strong>{data.synthetic ? 'Start with the example' : 'Your project is ready'}</strong><p>{data.synthetic ? 'Click a file below to see its connections. The example is fictional and needs no setup.' : 'Choose a file below, or review your recent edits with AI.'}</p></div><button className="copy-button" onClick={() => setActiveWorkspace('review')}>{data.synthetic ? 'Open change review' : 'Review my changes'}<ArrowRight size={16} /></button></div>
@@ -283,7 +286,7 @@ function App() {
     </main>
 
     {notice && <div className="toast" role="status"><Check size={15} />{notice}<button aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
-    <dialog ref={helpDialog} className="help-sheet" aria-labelledby="help-title" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><button className="close-sheet" aria-label="Close" onClick={() => setShowHelp(false)}><X size={17} /></button><span className="help-stamp">FIELD GUIDE</span><h2 id="help-title">Read the map as evidence.</h2><p>Stxic Atlas combines two signals: the files a target imports, and the files that have changed alongside it before. The second signal comes from Git history, not a prediction model.</p><div className="guide-row"><span className="guide-key import-key">IMPORT</span><span>A structural link in the current source.</span></div><div className="guide-row"><span className="guide-key history-key">HISTORY</span><span>Files changed together in past commits.</span></div><p className="guide-caveat">A link suggests what to inspect. It cannot prove what a change will break. The sample repository uses synthetic data.</p><button className="guide-done" onClick={() => setShowHelp(false)}>Understood</button></dialog>
+    <dialog ref={helpDialog} className="help-sheet" aria-labelledby="help-title" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><button className="close-sheet" aria-label="Close" onClick={() => setShowHelp(false)}><X size={17} /></button><h2 id="help-title">Understand a project change.</h2><p>Stxic reads the saved history and code in an app or website project. It helps you see what changed and what else to check before you approve it.</p><ol className="help-steps"><li>Choose your project folder with Browse folders.</li><li>Open AI change review and click Check changes. Already saved your work? Choose Latest saved version.</li><li>Explain with AI gives a short explanation. Run deeper review checks for possible problems.</li></ol><p>Git means your project’s saved-version history. If a folder has no Git history, ask its developer for the project checkout. You can try Explore example review without setup.</p><p>File connections shows which files use each other or have changed together. Links are clues, not proof of a problem. AI answers can be wrong.</p><p>Light and Dark change the screen colors. Auto follows your device. Local AI keeps code on this computer; cloud AI asks before sending it.</p><button className="guide-done" onClick={() => setShowHelp(false)}>Got it</button></dialog>
   </div>;
 }
 
