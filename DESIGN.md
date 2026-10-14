@@ -41,6 +41,7 @@ Barlow Condensed carries display headings; DM Sans carries interface copy; IBM P
 - Focus rings, labeled inputs, status messages, reduced-motion handling, and transparent sample labeling are part of the interface contract.
 - Review examples carry a persistent synthetic notice above the result. Example votes are temporary; they must not resemble saved feedback from a real run.
 - The review report labels its summary source as model interpretation, Git counts, or a synthetic example. Incomplete reviews explain which passes or source coverage are missing.
+- Completed reviewers with invalid findings show the rejection count; the report remains Partial review and explains the invalid output. Empty incomplete results never resemble a clean check.
 - The field guide uses a native modal dialog for Escape, contained focus, and restoration to the opening control.
 
 

@@ -147,6 +147,8 @@ Reads, Git output, history, request payloads, and review context are bounded. Sy
 - The map considers up to **400 commits** and **140 tracked source files**, displaying up to **28 files**. Co-change pairs use at most 60 source files per commit.
 - Import detection is pattern-based, primarily JavaScript/TypeScript-style relative imports and relative/local-package Dart imports. Other supported languages contribute history signals; this is not a complete dependency parser.
 - AI receives at most **38,000 diff characters**. Omitted source, truncation, malformed replies, and failed passes produce an incomplete result.
+- Invalid model findings or citations also make a review incomplete; valid findings remain inspectable.
+- Projects whose tracked files use Git clean/process filters (including Git LFS) cannot use change previews or AI review. Stxic stops before executing those helpers; use a separate checkout without the filters. File connections still work, and unrelated projects with unused global filters remain supported. The app never changes Git settings.
 - Connections suggest where to investigate. AI can miss defects or propose incorrect findings even when every pass completes.
 - Webhooks, GitHub review comments, CI review integration, model training, and automatic prompt evolution are not implemented.
 
@@ -156,10 +158,15 @@ Reads, Git output, history, request payloads, and review context are bounded. Sy
 npm test
 npm run build
 npm run build:landing
+npm run smoke:install
 npm audit
 ```
 
 Tests use disposable synthetic Git repositories, mocked model replies, and an isolated SQLite store. They cover evidence, file boundaries, malformed/partial results, cloud consent, provider failures, feedback, and stale requests. The dated [verification record](docs/verification.md) lists checks actually run and their limits.
+
+`smoke:install` requires the local production build and an unused port 4317. It starts an isolated local service, checks the built page and API, scans a disposable synthetic Git project, and previews a change without AI. It then removes its temporary data.
+
+The [release-check workflow](.github/workflows/ci.yml) configures fresh installs and checks on Windows, macOS, and Linux using Node 22.13.0 and 24. Its first remote run must pass before a release; adding the workflow does not establish platform compatibility. See the [release checklist](docs/release.md).
 
 For an **actual installed local model** check:
 
@@ -196,6 +203,11 @@ npm run preview:landing   # preview the production build
 | [AGENTS.md](AGENTS.md) | Contributor rules |
 
 Build outputs, tool settings, databases, historical screenshots, and development notes are excluded from the published tree. Source, lockfile, tests, and the documentation needed to understand and run the project remain tracked.
+
+## License and reporting
+
+Project code is licensed under [Apache 2.0](LICENSE); see [NOTICE](NOTICE). Third-party dependencies and bundled fonts retain their own licenses.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes. Use the bug-report template for sanitized synthetic reproductions, and follow [SECURITY.md](SECURITY.md) for vulnerabilities.
 
 ## Related work
 

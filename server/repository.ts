@@ -4,8 +4,42 @@ import { isAbsolute, relative, resolve, sep, join } from 'node:path';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 
 const exec = promisify(execFile);
-export function runGit(repoPath: string, args: string[], maxBuffer = 8 * 1024 * 1024) {
-  return exec('git', ['-c', 'core.quotePath=false', '-c', 'core.fsmonitor=false', ...args], { cwd: repoPath, maxBuffer, timeout: 20000, windowsHide: true });
+const gitSafety = ['-c', 'core.quotePath=false', '-c', 'core.fsmonitor=false'];
+function gitAttributes(repoPath: string, paths: string) {
+  return new Promise<string>((done, fail) => {
+    const child = execFile('git', [...gitSafety, 'check-attr', '-z', '--stdin', 'filter'], { cwd: repoPath, maxBuffer: 8 * 1024 * 1024, timeout: 20000, windowsHide: true }, (error, stdout) => error ? fail(error) : done(stdout));
+    child.stdin?.on('error', () => { /* execFile reports process failure. */ });
+    child.stdin?.end(paths);
+  });
+}
+export async function runGit(repoPath: string, args: string[], maxBuffer = 8 * 1024 * 1024) {
+  const overrides: string[] = [];
+  if (args[0] === 'diff') {
+    // --no-ext-diff/--no-textconv do not disable working-tree clean filters.
+    // Fail closed rather than execute helpers or silently change Git's evidence.
+    let filters = '';
+    try {
+      const result = await exec('git', ['config', '--null', '--get-regexp', '^filter\\..*\\.(clean|process)$'], { cwd: repoPath, maxBuffer: 64 * 1024, timeout: 20000, windowsHide: true });
+      filters = result.stdout;
+    } catch (error) {
+      if ((error as { code?: unknown }).code !== 1) throw new Error('Could not safely inspect Git filters. Change preview was stopped.');
+    }
+    const drivers = new Set<string>();
+    for (const entry of filters.split('\0').filter(Boolean)) {
+      const key = entry.slice(0, entry.indexOf('\n'));
+      const name = key.slice('filter.'.length, key.lastIndexOf('.'));
+      if (entry.slice(entry.indexOf('\n') + 1).trim()) drivers.add(name);
+      overrides.push('-c', `${key}=`);
+    }
+    if (drivers.size) {
+      const { stdout: paths } = await exec('git', [...gitSafety, 'ls-files', '-z'], { cwd: repoPath, maxBuffer, timeout: 20000, windowsHide: true });
+      const attributes = (await gitAttributes(repoPath, paths)).split('\0');
+      for (let index = 2; index < attributes.length; index += 3) {
+        if (drivers.has(attributes[index])) throw new Error('Change preview stopped: this project uses configured Git clean/process filters that could execute programs. File connections still work. Use a separate checkout without those filters to review changes; Stxic Atlas does not change your Git settings.');
+      }
+    }
+  }
+  return exec('git', [...gitSafety, ...overrides, ...args], { cwd: repoPath, maxBuffer, timeout: 20000, windowsHide: true });
 }
 
 export async function repositoryRoot(value: unknown) {

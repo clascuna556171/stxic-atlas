@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible problem using a synthetic example.
+title: '[Bug] '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, follow SECURITY.md instead of opening a public issue.
+        Never include API keys, private source, repository paths, or sensitive exported reports.
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use a small synthetic project or the built-in example.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser, Node and Git versions, project commit, local/cloud/no AI, model name if applicable. Do not include credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized error or screenshot
+      description: Optional. Remove paths, secrets, and private code before attaching anything.

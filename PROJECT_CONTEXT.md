@@ -26,6 +26,7 @@ Show what evidence led to a signal. Keep scanning local; require an outgoing-con
 - Findings can be inspected against the exact diff and exported as JSON.
 - A visibly synthetic review walkthrough works without Ollama. Its feedback stays in memory and cannot tune real reviewer weights.
 - Malformed responses, failed chair passes, truncated diffs, and omitted untracked files produce an incomplete review state.
+- Rejected model findings/citations also force an incomplete result while retaining valid evidence. Change previews reject active Git clean/process filters before helpers can execute.
 - A separate static landing page introduces the product with an interactive synthetic file map, a synthetic review/diff walkthrough, and local installation instructions. Vercel hosts this presentation only; the local repository service is not deployed.
 
 ## Not implemented

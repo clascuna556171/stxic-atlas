@@ -35,6 +35,8 @@ Switching workspaces retains review inputs, findings, votes, and any running rev
 
 **Boundary:** impact links are navigation clues, not predictions or proof of a defect. Analysis does not execute repository code or upload it.
 
+Change preview and AI context collection stop before diffing when tracked files use configured Git clean/process filters. The message offers a separate checkout without those filters; file connections remain available. Git settings are never changed. Unused global filters do not block an unrelated project.
+
 ## 3. Review a local change with the swarm
 
 The screen is labeled **AI change review**. Choose Current edits, Latest saved version, or Advanced comparison. **Check changes** lists files and shows the bounded diff without AI. No-change and invalid-baseline states offer a concrete next step. **Explain with AI** performs one plain explanation; **Run deeper review** performs five specialist passes and the final reviewer. Both check the change again before starting; no edits means no inference. It shows elapsed waiting time and keeps the prior report if the request fails. **Save readable report** downloads text; **Export JSON** retains the structured data. Example loading clears any real preview to keep their sources separate.
@@ -63,7 +65,7 @@ The screen is labeled **AI change review**. Choose Current edits, Latest saved v
 ## 5. Recover from incomplete work
 
 - If the initial local service request fails, the app shows a connection error with a retry button.
-- A review with failed specialists or chair, a diff over 38,000 characters, or omitted untracked files is labeled **Partial review**. The screen explains the missing work while preserving available findings and diff evidence.
+- A review with failed specialists or chair, rejected model findings/citations, a diff over 38,000 characters, or omitted untracked files is labeled **Partial review**. The screen explains the missing work while preserving available findings and diff evidence. Completed requests with rejected findings cannot produce a clean result.
 - Malformed API responses show a readable error instead of rendering an invalid report.
 - The field guide supports Escape, focus containment, and focus restoration through a native modal dialog.
 

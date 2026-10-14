@@ -4,15 +4,28 @@ This record describes checks run against the current local app and separate land
 
 ## Automated checks
 
-- `npm test`: 28 tests passed. Coverage includes Git/import history, NUL-delimited filenames, repository containment, generated-file exclusions, feedback integrity, response validation, partial reviews, cloud consent, provider denial, and request lifecycle handling.
+- `npm test`: 32 tests passed. Coverage includes Git/import history, NUL-delimited filenames, repository containment, active/unused Git clean/process filters, generated-file exclusions, feedback integrity, rejected model findings/citations, response validation, partial reviews, cloud consent, provider denial, and request lifecycle handling.
 - `npm run build`: local frontend and backend TypeScript checks and production frontend build passed.
 - `npm run build:landing`: separate landing TypeScript checks and static build passed.
 - `npm audit`: zero reported vulnerabilities.
 - `git diff --check`: passed.
+- Fresh isolated Windows snapshot: `npm ci`, all 32 tests, both builds, and `smoke:install` passed using Node 24.14.0. The snapshot was removed afterward.
+- Node 22.13.0 on Windows: all 32 tests and `smoke:install` passed.
+- Installation smoke checked the production HTML, local health/demo API, synthetic Git scan, and change preview without AI, with temporary storage and cleanup.
+- The active/unused filter regression tests were rerun after adding the explicit unused-filter fixture; both passed.
 
-The suite uses disposable Git fixtures, mocked model replies, and an isolated SQLite store. An actual Ollama inference smoke run was not repeated during this cleanup.
+The suite uses disposable Git fixtures, mocked model replies, and an isolated SQLite store. The CI matrix is configured but has not been run remotely; Linux/macOS compatibility is not established by the Windows checks.
 
-## Browser and deployment checks
+## Actual local-model smoke
+
+`npm run smoke:review -- qwen2.5-coder:1.5b` completed on a synthetic checkout using
+local Ollama. Five specialists and the final reviewer completed in approximately 18 seconds;
+the report retained five findings and correctly remained `partial-review` because some
+model output was invalid. This verifies actual transport/orchestration and incomplete-output
+handling, not accuracy or release approval. No cloud AI was called. The synthetic report,
+checkout, and isolated feedback store remain under ignored `.test-data/`.
+
+## Earlier browser and deployment checks (not repeated in this release hardening)
 
 - Local scan, search empty-state recovery, synthetic review rendering, and help-dialog Escape/focus restoration.
 - Landing keyboard file selection, import/history filters, empty-connection recovery, exact diff inspection, FAQ disclosure, clipboard setup commands, and light/dark appearance.

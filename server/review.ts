@@ -133,15 +133,17 @@ function parseFindings(payload: { summary?: unknown; findings?: unknown }, chang
   if (!Array.isArray(payload.findings)) throw new Error('The specialist response did not include a findings array.');
   const items = Array.isArray(payload.findings) ? payload.findings.slice(0, 8) : [];
   const validSeverities = new Set<Severity>(['critical', 'high', 'medium', 'low']);
-  return items.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
+  let rejected = Math.max(0, payload.findings.length - items.length);
+  const findings = items.flatMap((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) { rejected++; return []; }
     const row = item as Record<string, unknown>;
     const file = safeString(row.file, '', 500).replaceAll('\\', '/').replace(/^\.\//, '');
-    if (!changedPaths.has(file) || !changedLines.has(file)) return [];
+    if (!changedPaths.has(file) || !changedLines.has(file) || typeof row.title !== 'string' || !row.title.trim() || typeof row.comment !== 'string' || !row.comment.trim()) { rejected++; return []; }
     const severity = String(row.severity ?? 'medium').toLowerCase() as Severity;
     const lineNumber = Number(row.line);
     const lineRanges = changedLines.get(file) ?? [];
     const line = Number.isInteger(lineNumber) && lineNumber > 0 && lineRanges.some(([start, end]) => lineNumber >= start && lineNumber <= end) ? lineNumber : null;
+    if (typeof row.severity !== 'string' || !validSeverities.has(severity) || (row.line !== null && (typeof row.line !== 'number' || line === null)) || typeof row.confidence !== 'number' || !Number.isFinite(row.confidence) || row.confidence < 0 || row.confidence > 1) rejected++;
     return [{
       severity: validSeverities.has(severity) ? severity : 'medium',
       category: safeString(row.category, 'correctness', 40).toLowerCase(),
@@ -152,6 +154,7 @@ function parseFindings(payload: { summary?: unknown; findings?: unknown }, chang
       agent: agentId,
     }];
   });
+  return { findings, rejected };
 }
 
 async function askAgent(model: string, system: string, payload: unknown, provider: AIProvider = 'local') {
@@ -175,11 +178,11 @@ async function collectPatch(repoPath: string, baseRef: string) {
   catch { throw new Error(baseRef === 'HEAD^' ? 'This project needs at least two saved commits to compare the latest commit. Choose Current edits instead.' : 'That saved version was not found. Choose Current edits, or check the branch or commit name under Advanced comparison.'); }
   const [{ stdout: diff }, { stdout: names }, { stdout: branchName }, { stdout: untracked }, { stdout: commitSubjects }, { stdout: numstat }] = await Promise.all([
     runGit(repoPath, ['diff', '--no-ext-diff', '--no-textconv', '--no-color', '--unified=12', baseRef, '--'], 8 * 1024 * 1024),
-    runGit(repoPath, ['diff', '--no-ext-diff', '--no-color', '--name-status', '-z', '--find-renames', baseRef, '--']),
+    runGit(repoPath, ['diff', '--no-ext-diff', '--no-textconv', '--no-color', '--name-status', '-z', '--find-renames', baseRef, '--']),
     runGit(repoPath, ['branch', '--show-current']),
     runGit(repoPath, ['ls-files', '-z', '--others', '--exclude-standard']),
     runGit(repoPath, ['log', '--format=%s', '-n', '8', `${baseRef}..HEAD`, '--']).catch(() => ({ stdout: '' })),
-    runGit(repoPath, ['diff', '--no-ext-diff', '--numstat', '-z', '--find-renames', baseRef, '--']),
+    runGit(repoPath, ['diff', '--no-ext-diff', '--no-textconv', '--numstat', '-z', '--find-renames', baseRef, '--']),
   ]);
   const changedFiles = new Map<string, { path: string; status: string; additions: number; deletions: number }>();
   const nameParts = names.split('\0');
@@ -226,7 +229,7 @@ async function collectPatch(repoPath: string, baseRef: string) {
   return { diff: limitedDiff, diffTruncated, files: [...changedFiles.values()], generatedExcluded, untrackedOmitted: candidatePaths.filter((path) => !changedFiles.has(path.replaceAll('\\', '/'))), branch: branchName.trim() || 'detached HEAD', commitMessages: commitSubjects.split(/\r?\n/).filter(Boolean) };
 }
 
-function groupFindings(rows: ReturnType<typeof parseFindings>, agents: ReviewResult['agents']): ReviewFinding[] {
+function groupFindings(rows: ReturnType<typeof parseFindings>['findings'], agents: ReviewResult['agents']): ReviewFinding[] {
   const activeWeight = agents.filter((agent) => agent.status === 'complete').reduce((sum, agent) => sum + agent.weight, 0) || 1;
   const groups = new Map<string, typeof rows>();
   for (const item of rows) {
@@ -329,8 +332,8 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
     try {
       const result = await askAgent(model, agentPrompt(role.focus), { intent, commitMessages: patch.commitMessages, projectContext, baseRef, currentBranch: patch.branch, diff: promptDiff, note: patch.diffTruncated ? 'The diff was truncated at 38,000 characters. This review is incomplete.' : '' }, provider);
       const parsedFindings = parseFindings(result.parsed, new Set(patch.files.map((file) => file.path)), changedLines, role.id);
-      Object.assign(agent, { status: 'complete', findings: parsedFindings.length, elapsedMs: result.durationMs || Date.now() - started, promptTokens: result.promptTokens, responseTokens: result.responseTokens, error: undefined });
-      return { findings: parsedFindings };
+      Object.assign(agent, { status: 'complete', findings: parsedFindings.findings.length, rejectedFindings: parsedFindings.rejected, elapsedMs: result.durationMs || Date.now() - started, promptTokens: result.promptTokens, responseTokens: result.responseTokens, error: undefined });
+      return { findings: parsedFindings.findings };
     } catch (error) {
       if (provider === 'cloud' && role.id === roleSpecs[0].id && error instanceof AIServiceError) throw error;
       Object.assign(agent, { status: 'failed', elapsedMs: Date.now() - started, error: error instanceof Error ? error.message.slice(0, 180) : 'Agent failed.' });
@@ -359,7 +362,7 @@ export async function runReview(input: AIInput): Promise<ReviewResult> {
   const passed = agents.filter((agent) => agent.status === 'complete').length;
   const totalTokens = chairTokens + agents.reduce((sum, agent) => sum + agent.promptTokens + agent.responseTokens, 0);
   const highFindings = finalFindings.some((finding) => finding.chairVerdict === 'supported' && finding.line !== null && (finding.severity === 'critical' && finding.agents.includes('security') || finding.severity === 'high' && (finding.agents.length > 1 && finding.agreement >= 0.35 || finding.confidence >= 0.9)));
-  const decision: ReviewResult['decision'] = passed < roleSpecs.length || chair.status !== 'complete' || patch.diffTruncated || patch.untrackedOmitted.length > 0 ? 'partial-review' : highFindings ? 'request-changes' : finalFindings.some((finding) => finding.chairVerdict !== 'dismissed') ? 'review-findings' : 'looks-clear';
+  const decision: ReviewResult['decision'] = passed < roleSpecs.length || agents.some((agent) => (agent.rejectedFindings ?? 0) > 0) || chair.status !== 'complete' || patch.diffTruncated || patch.untrackedOmitted.length > 0 ? 'partial-review' : highFindings ? 'request-changes' : finalFindings.some((finding) => finding.chairVerdict !== 'dismissed') ? 'review-findings' : 'looks-clear';
   const usefulStats = feedbackStats();
   const result: ReviewResult = {
     synthetic: false, provider,

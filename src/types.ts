@@ -37,7 +37,7 @@ export type ReviewResult = {
   changeSummary: string; changeSummarySource: 'model' | 'git' | 'synthetic'; purposeSummary: string; purposeSource: 'user' | 'git' | 'unprovided';
   untrackedOmitted: string[]; diff: string; diffTruncated: boolean; findings: ReviewFinding[];
   decision: 'request-changes' | 'review-findings' | 'looks-clear' | 'partial-review'; confidence: number;
-  agents: { id: 'security' | 'architecture' | 'quality' | 'tests' | 'performance'; name: string; weight: number; status: 'complete' | 'failed'; findings: number; elapsedMs: number; promptTokens: number; responseTokens: number; error?: string }[];
+  agents: { id: 'security' | 'architecture' | 'quality' | 'tests' | 'performance'; name: string; weight: number; status: 'complete' | 'failed'; findings: number; rejectedFindings?: number; elapsedMs: number; promptTokens: number; responseTokens: number; error?: string }[];
   chair: { status: 'complete' | 'failed' | 'skipped'; elapsedMs: number; error?: string };
   metrics: { passed: number; totalAgents: number; totalTokens: number; usefulFeedback: number; incorrectFeedback: number };
 };

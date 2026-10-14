@@ -1,6 +1,7 @@
 {
   "name": "stxic-atlas",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"
@@ -8,6 +9,7 @@
   "scripts": {
     "test": "tsx --test tests/*.test.ts",
     "smoke:review": "tsx scripts/smoke-review.ts",
+    "smoke:install": "tsx scripts/smoke-install.ts",
     "dev": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "vite",

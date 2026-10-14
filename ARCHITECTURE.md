@@ -51,7 +51,7 @@ The frontend and backend use the review types in `src/types.ts`. Frontend respon
 `previewChanges` validates the root and comparison before collecting the same bounded patch used by review. The special `HEAD^` comparison is explicitly allowed; arbitrary Git revision expressions and option-like refs remain rejected. A preview does not require a model and does not imply a review occurred. New repositories with tracked/staged supported code can display a map before their first commit; review still requires a saved baseline. Folder paths can contain a surrounding pair of double quotes; external URLs and filesystem/Git errors produce actionable messages.
 
 - `server/security.ts` rejects non-loopback Host/Origin headers, cross-site browser requests, and non-JSON API POSTs before parsing their payloads. Local API responses are not cached and include anti-framing and MIME-sniffing protection. Only one review request can run at a time to bound local-model resource use.
-- Git invocations disable configured filesystem monitor helpers in the inspected repository. This avoids running a repository-configured helper during scans.
+- Git invocations disable configured filesystem monitor helpers. Before a diff, bounded configuration and tracked-file attribute checks reject active clean/process filters (including Git LFS), rather than executing helpers or silently changing their evidence. Unused configured filters do not block unrelated projects; detected filter commands are overridden to empty for the diff invocation. External diff and text conversion are disabled on all patch/stat/name queries. These checks do not change the inspected project's settings.
 - Development binds explicitly to IPv4 loopback at port 5175 and fails if that port is occupied, avoiding silent port changes.
 - `src/theme.ts` resolves a browser-local appearance preference and system color scheme. No theme preference or additional repository data is transmitted.
 
@@ -87,6 +87,10 @@ repositoryRoot accepts a selected subfolder only when its canonical real path is
 sourceScope.ts identifies conventional generated directories and brag-output-* exports. Untracked generated paths are excluded before the 20-file source cap and returned separately as generatedExcluded. Supported Dart untracked source is included. Genuine omitted/unreadable source still produces incomplete coverage. Tracked diffs retain Git's evidence as before.
 
 The separate landing build (`dist-landing/`) and Vercel metadata (`.vercel/`) also count as generated paths. Building or deploying this project does not consume the untracked source preview budget.
+
+Specialist parsing preserves valid findings and counts malformed entries, invalid citations/fields, and findings beyond the eight-entry bound in optional `agents[].rejectedFindings`. Any rejection forces `partial-review`, even if all requests completed. File-level concerns remain inspectable, but an invalid claimed line also marks the run incomplete. UI, exports, and response guards preserve this distinction; no new database content is stored.
+
+`.github/workflows/ci.yml` configures clean installation, tests, both builds, and `smoke:install` on Windows/macOS/Linux with Node 22.13.0 and 24. It has read-only repository permissions, pinned actions, no inference calls, and no deployment step. Remote results must be inspected before release.
 
 AIServiceError carries sanitized status-specific recovery text. The first cloud specialist runs before the other four to detect account/model denial. A denied first request aborts the run; failures later in a run preserve completed specialist results. When no specialists complete, the final model call is not made. Local specialists continue to run concurrently.
 

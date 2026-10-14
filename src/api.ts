@@ -55,10 +55,11 @@ export function reviewResult(value: unknown): ReviewResult {
     || !Array.isArray(value.findings) || !value.findings.every((finding) => object(finding) && ['id', 'file', 'title', 'comment', 'severity'].every((key) => typeof finding[key] === 'string') && strings(finding.agents) && typeof finding.agreement === 'number'))
     throw new Error('The local service returned an incomplete review report.');
   const agents = ['security', 'architecture', 'quality', 'tests', 'performance'];
+  if (value.agents.some((agent) => (agent.rejectedFindings ?? 0) > 0) && value.decision !== 'partial-review') throw new Error('The local service returned an incomplete review report.');
   if (typeof value.diffTruncated !== 'boolean' || !['user', 'git', 'unprovided'].includes(String(value.purposeSource))
     || !['model', 'git', 'synthetic'].includes(String(value.changeSummarySource))
     || !['complete', 'failed', 'skipped'].includes(String(value.chair.status)) || !Number.isFinite(value.chair.elapsedMs)
-    || !value.agents.every((agent) => agents.includes(agent.id) && ['complete', 'failed'].includes(agent.status))
+    || !value.agents.every((agent) => agents.includes(agent.id) && ['complete', 'failed'].includes(agent.status) && (agent.rejectedFindings === undefined || Number.isInteger(agent.rejectedFindings) && agent.rejectedFindings >= 0))
     || !value.findings.every((finding) => ['critical', 'high', 'medium', 'low'].includes(finding.severity)
       && ['supported', 'questioned', 'dismissed', 'not-run'].includes(finding.chairVerdict)
       && typeof finding.chairReason === 'string' && (finding.line === null || Number.isInteger(finding.line) && finding.line > 0)

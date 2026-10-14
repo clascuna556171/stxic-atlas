@@ -1,6 +1,6 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm, symlink, unlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, symlink, unlink, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { analyzeRepository } from '../server/analyze.ts';
@@ -8,16 +8,17 @@ import { readRepositoryFile, repositoryRoot, runGit } from '../server/repository
 import { atlasData, changePreview, reviewResult, reviewStatus } from '../src/api.ts';
 import { reviewDemo } from '../src/reviewDemo.ts';
 
-const temporary = await mkdtemp(join(tmpdir(), 'stxic-atlas-test-'));
+const temporaryRoot = await realpath(tmpdir());
+const temporary = await mkdtemp(join(temporaryRoot, 'stxic-atlas-test-'));
 process.env.LOCALAPPDATA = temporary;
 const { previewChanges, runReview, saveReviewFeedback, closeReviewStore } = await import('../server/review.ts');
 const { explainChanges, prepareDisclosure, ollamaStatus } = await import('../server/review.ts');
 const { connectCloud, cloudStatus, disconnectCloud } = await import('../server/ai.ts');
 after(async () => {
   // Only remove this test's freshly generated temporary folder.
-  assert.ok(resolve(temporary).startsWith(resolve(tmpdir()) + sep));
+  assert.ok(resolve(temporary).startsWith(resolve(temporaryRoot) + sep));
   closeReviewStore();
-  await rm(temporary, { recursive: true, force: true });
+  await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 const root = join(temporary, 'repository');
 await mkdir(root);
@@ -95,7 +96,7 @@ test('malformed API payloads fail before rendering, and the labeled demo is vali
   assert.throws(() => reviewResult({ ...reviewDemo, findings: [{ ...reviewDemo.findings[0], line: -1 }] }), /incomplete/);
 });
 
-function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-findings' | 'chair-malformed' | 'chair-incomplete' | 'uncited') {
+function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-findings' | 'chair-malformed' | 'chair-incomplete' | 'uncited' | 'invalid-only' | 'mixed-invalid') {
   const original = globalThis.fetch;
   globalThis.fetch = async (_url, options) => {
     if (String(_url).endsWith('/api/tags')) return Response.json({ models: [{ name: 'fixture-model' }] });
@@ -105,12 +106,12 @@ function mockModel(mode: 'valid' | 'chair-fails' | 'specialist-malformed' | 'no-
     if (chair && mode === 'chair-fails') return new Response('', { status: 500 });
     const finding = { severity: 'high', category: 'correctness', file: 'a.ts', line: mode === 'uncited' ? 999 : 2, title: 'Synthetic fixture finding', comment: 'Fixture explanation', confidence: 0.6 };
     const payload = chair ? mode === 'chair-malformed' ? {} : { changeSummary: 'Synthetic fixture summary', purposeSummary: 'Not provided.', votes: mode === 'chair-incomplete' ? [] : [{ id: 'finding-1', verdict: 'supported', reason: 'Fixture evidence' }] }
-      : mode === 'specialist-malformed' ? {} : { findings: mode === 'no-findings' ? [] : [finding, { ...finding, file: 'not-changed.ts' }] };
+      : mode === 'specialist-malformed' ? {} : { findings: mode === 'no-findings' ? [] : mode === 'invalid-only' ? [null, { ...finding, file: 'not-changed.ts' }] : mode === 'mixed-invalid' ? [finding, { ...finding, file: 'not-changed.ts' }] : [finding] };
     return Response.json({ message: { content: JSON.stringify(payload) }, prompt_eval_count: 10, eval_count: 5 });
   };
   return () => { globalThis.fetch = original; };
 }
-for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings', 'chair-malformed', 'chair-incomplete', 'uncited'] as const) {
+for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings', 'chair-malformed', 'chair-incomplete', 'uncited', 'invalid-only', 'mixed-invalid'] as const) {
   test(`local review workflow: ${mode}`, async () => {
     const restore = mockModel(mode);
     try {
@@ -137,7 +138,13 @@ for (const mode of ['valid', 'chair-fails', 'specialist-malformed', 'no-findings
         const changed = saveReviewFeedback({ ...vote, vote: 'incorrect' });
         assert.equal(changed.useful, 0);
         assert.equal(changed.incorrect, 5);
-      } else if (mode === 'uncited') { assert.equal(report.findings[0].line, null); assert.equal(report.decision, 'review-findings'); }
+      } else if (mode === 'uncited') { assert.equal(report.findings[0].line, null); assert.equal(report.decision, 'partial-review'); }
+      else if (mode === 'invalid-only' || mode === 'mixed-invalid') {
+        assert.equal(report.decision, 'partial-review');
+        assert.equal(report.findings.length, mode === 'invalid-only' ? 0 : 1);
+        assert.ok(report.agents.every((agent) => agent.rejectedFindings === (mode === 'invalid-only' ? 2 : 1)));
+        assert.throws(() => reviewResult({ ...report, agents: [{ ...report.agents[0], rejectedFindings: -1 }] }), /incomplete/);
+      }
       else if (mode === 'no-findings') assert.equal(report.decision, 'looks-clear');
       else assert.equal(report.decision, 'partial-review');
     } finally { restore(); }

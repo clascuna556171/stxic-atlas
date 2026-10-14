@@ -6,7 +6,7 @@ import { applyAppearance, readAppearance, type Appearance } from '../src/theme';
 import { reviewDemo } from '../src/reviewDemo';
 
 const repository = 'https://github.com/clascuna556171/stxic-atlas';
-const installCommands = `git clone ${repository}.git\ncd stxic-atlas\nnpm install\nnpm run dev`;
+const installCommands = `git clone ${repository}.git\ncd stxic-atlas\nnpm ci\nnpm run dev`;
 const files = [
   { id: 'cart', name: 'cart.ts', path: 'checkout/cart.ts', kind: 'CHECKOUT', x: 5, y: 11 },
   { id: 'totals', name: 'totals.ts', path: 'checkout/totals.ts', kind: 'CALCULATION', x: 37, y: 39 },
