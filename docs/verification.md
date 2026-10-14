@@ -14,7 +14,12 @@ This record describes checks run against the current local app and separate land
 - Installation smoke checked the production HTML, local health/demo API, synthetic Git scan, and change preview without AI, with temporary storage and cleanup.
 - The active/unused filter regression tests were rerun after adding the explicit unused-filter fixture; both passed.
 
-The suite uses disposable Git fixtures, mocked model replies, and an isolated SQLite store. The CI matrix is configured but has not been run remotely; Linux/macOS compatibility is not established by the Windows checks.
+The suite uses disposable Git fixtures, mocked model replies, and an isolated SQLite store.
+The [first remote release-check run](https://github.com/clascuna556171/stxic-atlas/actions/runs/38593402119)
+passed all six jobs for commit `2f97d2f`: fresh installation, tests, both builds, and
+installation smoke on Windows, macOS, and Linux with Node 22.13.0 and 24. The Ubuntu
+Node 24 job also passed the dependency audit. This checks these workflows on the runner
+environments; it is not a full browser/platform or model-accuracy certification.
 
 ## Actual local-model smoke
 

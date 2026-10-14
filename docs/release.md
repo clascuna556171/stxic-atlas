@@ -15,7 +15,9 @@ This checklist separates configured checks from completed verification. See
 
 ## Before announcing a downloadable/local-app release
 
-- [ ] Push the reviewed change and inspect all six CI matrix results. A configured workflow is not a passed run.
+- [x] Push the reviewed change and inspect all six CI matrix results. Commit `2f97d2f`
+  passed the [remote release checks](https://github.com/clascuna556171/stxic-atlas/actions/runs/38593402119)
+  on Windows/macOS/Linux with both Node versions.
 - [ ] Enable and verify GitHub private vulnerability reporting, or provide a working private contact.
 - [x] Run a real local-model smoke check with an installed model. `qwen2.5-coder:1.5b`
   completed all passes but returned invalid output, so the report correctly stayed partial.
