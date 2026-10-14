@@ -58,6 +58,8 @@ Light/Dark/Auto are labeled pressed buttons in a group, with 44px mobile targets
 
 ## Public landing page
 
+Landing headings and the hero question stand directly on their own, without eyebrow labels. Synthetic-data notices and evidence-source labels remain visible because they explain the examples and their boundaries.
+
 The landing page retains the Stxic mark, bundled Barlow Condensed/DM Sans/IBM Plex Mono fonts, and semantic palette. A working synthetic relationship field accompanies a concrete code-change headline. Selection and import/history filters update an adjacent evidence list; a native-button keyboard interaction matches pointer use. Solid and dashed lines distinguish source and history beyond color.
 
 The page progresses through evidence sources, a synthetic explanation with its inspectable diff, the local/cloud privacy boundary, installation commands, and native FAQ disclosures. It uses no invented adoption metrics or testimonials. Light/Dark/Auto remain available with browser-local persistence. Narrow layouts stack the sections and retain 44px actions; long paths can wrap and diff content scrolls within its own view. Reduced motion removes smooth anchor scrolling. Local setup is an instruction, not a remote repository connection.

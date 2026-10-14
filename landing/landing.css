@@ -78,8 +78,6 @@ h1, h2, h3, p { margin: 0; }
 .theme-switch button[aria-pressed="true"] { color: var(--ink); background: var(--surface); }
 .hero { display: grid; grid-template-columns: .85fr 1fr; align-items: start; gap: 6%; padding: 72px 5% 88px; }
 .hero-copy { padding-top: 12px; }
-.eyebrow { display: flex; align-items: center; gap: 9px; font: 11px/1.5 var(--mono); letter-spacing: 1px; margin-bottom: 25px; color: var(--muted); }
-.eyebrow > span { width: 7px; height: 7px; background: var(--accent); transform: rotate(45deg); }
 h1 { font: 600 clamp(66px, 6.9vw, 106px)/.98 var(--display); letter-spacing: -1.3px; }
 h1 span { color: var(--accent); }
 .hero-description { font-size: 17px; line-height: 1.75; color: var(--muted); max-width: 38ch; margin-top: 26px; }
@@ -90,8 +88,7 @@ h1 span { color: var(--accent); }
 .secondary-action:hover { text-decoration: underline; text-underline-offset: 4px; }
 .hero-boundary { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 19px; line-height: 1.6; }
 .hero-footnote { position: relative; max-width: 360px; border-top: 1px solid var(--line); margin-top: 40px; padding-top: 20px; }
-.hero-footnote > span { font: 10px/1.5 var(--mono); color: var(--muted); letter-spacing: .7px; }
-.hero-footnote p { margin-top: 9px; font-size: 20px; line-height: 1.5; }
+.hero-footnote p { font-size: 20px; line-height: 1.5; }
 .hero-footnote a { position: absolute; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--line-strong); }
 .example-map { min-width: 0; background: var(--paper); border: 1px solid var(--line-strong); box-shadow: 7px 7px 0 var(--surface); }
 .example-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 15px 18px; }
@@ -151,7 +148,6 @@ h3 { font-size: 16px; font-weight: 600; line-height: 1.5; }
 .method-origin { font-size: 11px; line-height: 1.6; }
 .scope-note { color: var(--muted); font-size: 12px; line-height: 1.8; border-top: 1px solid var(--line); padding-top: 20px; }
 .review-section { display: grid; grid-template-columns: .85fr 1fr; gap: 6%; padding: 68px 5% 82px; background: var(--paper); border-block: 1px solid var(--line); }
-.section-label { display: block; font: 10px/1.6 var(--mono); letter-spacing: .7px; color: var(--muted); margin-bottom: 18px; }
 .review-copy > p, .setup-copy > p { margin-top: 20px; font-size: 15px; line-height: 1.8; color: var(--muted); max-width: 40ch; }
 .workflow { list-style: none; padding: 0; margin: 30px 0 0; }
 .workflow li { display: flex; gap: 13px; padding: 17px 0; border-top: 1px solid var(--line); }
@@ -258,7 +254,6 @@ details[open] .faq-minus { display: block; }
   .theme-switch button { flex: 1; min-height: 44px; font-size: 13px; }
   .hero { padding: 32px 5% 52px; gap: 32px; }
   .hero-copy { padding-top: 0; }
-  .eyebrow { font-size: 10px; margin-bottom: 19px; }
   h1 { font-size: clamp(48px, 13.5vw, 80px); letter-spacing: -.6px; }
   .hero-description { font-size: 15px; margin-top: 22px; }
   .hero-actions { gap: 8px 16px; margin-top: 23px; }
